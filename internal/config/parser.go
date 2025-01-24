@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"os"
 	"path/filepath"
 	"strings"
 )
@@ -17,7 +18,9 @@ func Parser(filepath string) (*APIConfig,error) {
 		log.Fatal("File path is empty")
 		return nil, fmt.Errorf("File path is empty")
 	}
-	
+	if _, err := os.Stat(filepath); os.IsNotExist(err) {
+		log.Fatalf("File not found: %s", filepath)
+	}
 	ext := GetFileExtension(filepath)
     switch ext {
     case ".json":
