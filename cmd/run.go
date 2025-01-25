@@ -7,7 +7,6 @@ import (
 	"path/filepath"
 	"runtime"
 	"sync"
-
 	"github.com/pradeepbgs/pingfile/internal/config"
 	"github.com/pradeepbgs/pingfile/internal/runner"
 	"github.com/spf13/cobra"
@@ -60,35 +59,36 @@ var runCmd = &cobra.Command{
 	Long:  `The run command executes API requests defined in JSON, YAML, or PKFILE formats.`,
 	Run: func(cmd *cobra.Command, args []string) {
 		filepaths := args
-		multiThread, _ := cmd.Flags().GetBool("multithread")
+
+		var multiThread bool
+		if cmd.Flags().Changed("multithread") {
+			multiThread, _ = cmd.Flags().GetBool("multithread")
+		}
 
 		if multiThread {
 			var wg sync.WaitGroup
 			for _, filepath := range filepaths {
 				fmt.Println("--------------- >>>>")
-					fmt.Printf("Running PingFile for: %s\n", filepath)
-					fmt.Println("<<<<---------------")
+				fmt.Printf("Running PingFile for: %s\n", filepath)
+				fmt.Println("<<<<---------------")
 				wg.Add(1)
-				go func(file string) {					
+				go func(file string) {
 					exec(file, &wg)
 				}(filepath)
 			}
-			
+
 			wg.Wait()
-			
+
 		} else {
-
-		
-
 			for _, filepath := range filepaths {
 				fmt.Println("--------------- >>>>")
 				fmt.Printf("Running PingFile for: %s\n", filepath)
 				fmt.Println("<<<<---------------")
-				
+
 				execSequentially(filepath)
-				
-			}	
-		}		
+
+			}
+		}
 	},
 }
 
@@ -136,6 +136,7 @@ func installBinary() {
 
 func init() {
 	runCmd.Flags().BoolP("multithread", "m", false, "Run API requests concurrently (multi-threaded)")
+
 	rootCmd.AddCommand(runCmd)
 	rootCmd.AddCommand(installCmd)
 }
