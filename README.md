@@ -38,8 +38,55 @@ PingFile is a command-line tool that allows you to execute API requests from con
     ```
 Replace <file> with the path to your configuration file.    
 
-### Windows & macOS
-Follow the same steps as above to build the binary. The install command will automatically place the binary in the appropriate directory (~/bin for macOS and USERPROFILE/bin for Windows).
+### Windows 
+Download/clone the repository and open your CMD
+
+1. navigate to Pingfile Directory
+    ```bash
+    C:\Users\dell\Desktop\PingFile>
+    ```
+2. Build the binary:
+    ```bash 
+    go build -o pingfile.exe
+    ```
+3. Add Binary to usr/bin
+    ```bash
+    pingfile install
+    OR 
+    ./pingfile.exe install
+    OR 
+    pingfile.exe install
+    ```
+### 4. Add the binary globally to your system's PATH:
+   **Open Environment Variables:**
+   * Press `Win + S`, type Environment Variables, and select Edit the system environment variables.
+   * In the System Properties window, click the Environment Variables button.
+
+   **Edit the PATH Variable:**
+   * Under User Variables (for your user account), locate the `Path` variable and click Edit.
+   * Click New and add `C:\Users\dell\bin` to the list.
+   * Click OK to save changes and close all dialog boxes.
+
+   **Add the .exe Extension**
+
+  Since pingfile is likely an executable binary, rename it to include the .exe extension:
+  ```bash 
+  ren C:\Users\dell\bin\pingfile pingfile.exe
+  ```
+  OR manually go to Users\dell\bin and rename the file pingfile.exe
+
+  **then try this command**
+
+  You should see welcome message
+  ```bash
+  C:\Users\dell\Desktop\PingFile>pingfile
+  Welcome to PingFile!
+  Use 'pkfile run <file>' to execute API requests from a file.
+
+  C:\Users\dell\Desktop\PingFile>
+  ```
+
+
 
 ### Usage
 After installation, you can run PingFile commands directly from the terminal. Here are the available commands:
@@ -62,10 +109,17 @@ getAPI.json
     }
 }
 ```
-and test it with pingfile
+### Run the command
+**Note**
+ * here you can pass --multithread / -m command 
+ * this way you can make multiple req multithreaded
 
 ```bash
-    pingfile run getAPI.json
+    pingfile run getAPI.json 
+
+    OR 
+
+    pingfile run getAPI.json PostAPI.json --multithread
 ```
 ### Example output
 **For a successful request:**
