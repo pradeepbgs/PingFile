@@ -1,7 +1,7 @@
 package config
 
 import (
-	"bufio"
+	"encoding/json"
 	"fmt"
 	"os"
 )
@@ -9,18 +9,15 @@ import (
 
 func ParsePKFile(filepath string) (*APIConfig,error)  {
 	
-	file,err := os.Open(filepath)
+	data,err := os.ReadFile(filepath)
 	if err != nil{
 		return nil,  fmt.Errorf("error opening file: %v", err)
 	}
-	defer file.Close()
-
-	scanner := bufio.NewScanner(file)
-
-	for scanner.Scan() {
-		line := scanner.Text()
-		fmt.Println(line)
+	
+	var config APIConfig
+	if err = json.Unmarshal(data,&config); err != nil {
+		return nil, fmt.Errorf("error parsing JSON: %v", err)
 	}
 
-	return nil , nil
+	return &config , nil
 }
