@@ -16,10 +16,10 @@ func GetFileExtension(filePath string) string {
 func Parser(filepath string) (*APIConfig,error) {
 	if filepath == "" {
 		log.Fatal("File path is empty")
-		return nil, fmt.Errorf("File path is empty")
+		return nil, errors.New("file path is empty")
 	}
 	if _, err := os.Stat(filepath); os.IsNotExist(err) {
-		log.Fatalf("File not found: %s", filepath)
+		return nil,fmt.Errorf("file not found: %s", filepath)
 	}
 	ext := GetFileExtension(filepath)
     switch ext {
@@ -30,6 +30,6 @@ func Parser(filepath string) (*APIConfig,error) {
     case ".pkfile":
         return ParsePKFile(filepath)
     default:
-        return nil, errors.New("unsupported file format, we only support pkfile,yaml & json")
+        return nil, fmt.Errorf("unsupported file format %s; supported formats: pkfile, yaml, json", ext)
 	}
 }

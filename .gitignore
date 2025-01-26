@@ -1,4 +1,7 @@
-pingfile
-api.pkfile
-post.pkfile
+*.pkfile
+
+*.yaml
+
 api.json
+
+!pingfile
