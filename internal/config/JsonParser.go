@@ -6,12 +6,6 @@ import (
 )
 
 
-type APIConfig struct {
-	Name    string            `json:"name"`
-	URL     string            `json:"url"`
-	Headers map[string]string `json:"headers"`
-	Body    map[string]interface{} `json:"body"`
-}
 
 func ParseJSON(filepath string) (*APIConfig,error) {
 	data, err := os.ReadFile(filepath)

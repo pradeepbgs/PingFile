@@ -20,7 +20,7 @@ func exec(filepath string, wg *sync.WaitGroup,saveResponses bool,cookies []*http
 	fmt.Println("<<<<---------------")
 	
 	var apiConfig, err = config.Parser(filepath)
-
+	
 	if err != nil {
 		log.Printf("Error parsing file: %v", err)
 		defer wg.Done()
@@ -59,7 +59,7 @@ func execSequentially(filepath string,saveResponses bool,cookies []*http.Cookie)
 }
 
 var runCmd = &cobra.Command{
-	Use:   "run [file]",
+	Use:   "run [files]",
 	Short: "Execute API requests from a file",
 	Long:  `The run command executes API requests defined in JSON, YAML, or PKFILE formats.`,
 	
@@ -73,7 +73,7 @@ var runCmd = &cobra.Command{
 			multiThread, _ = cmd.Flags().GetBool("multithread")
 		}	
 		
-		cookies, err := config.ParseCookie("cookie.pkfile")
+		cookies, err := config.ParseCookie("root.cookie.pkfile")
 		if err != nil {
 			log.Printf("Error parsing cookies: %v", err)
 			cookies = nil

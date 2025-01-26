@@ -20,19 +20,19 @@ func SaveCookies(filename string, cookies []*http.Cookie) error {
 	}
 	defer file.Close()
 
-	existingCookie , _ := config.ParseCookie("cookie.pkfile")
+	existingCookie, _ := config.ParseCookie("root.cookie.pkfile")
 
 	cookieMap := make(map[string]*http.Cookie)
-	for _, c := range existingCookie{
-		cookieMap[c.Name] = c 
+	for _, c := range existingCookie {
+		cookieMap[c.Name] = c
 	}
 
-	for _,c := range cookies{
+	for _, c := range cookies {
 		cookieMap[c.Name] = c
 	}
 
 	var updatedCookie []*http.Cookie
-	for _,c := range cookieMap{
+	for _, c := range cookieMap {
 		updatedCookie = append(updatedCookie, c)
 	}
 
@@ -54,7 +54,7 @@ func SaveResponseToFile(filename string, requestDetails map[string]interface{}, 
 		"response": responseDetails,
 	}
 
-	file, err := os.Create(filename)
+	file, err := os.OpenFile(filename, os.O_RDWR|os.O_CREATE, 0644)
 	if err != nil {
 		return fmt.Errorf("failed to create file: %w", err)
 	}
@@ -67,12 +67,12 @@ func SaveResponseToFile(filename string, requestDetails map[string]interface{}, 
 
 func ExecuteAPI(apiConfig *config.APIConfig, saveResponses bool, cookie []*http.Cookie) error {
 	if apiConfig.Headers["Method"] == "" {
-        return fmt.Errorf("HTTP method not specified")
-    }
-    if apiConfig.URL == "" {
-        return fmt.Errorf("URL not specified")
-    }
-	
+		return fmt.Errorf("HTTP method not specified")
+	}
+	if apiConfig.URL == "" {
+		return fmt.Errorf("URL not specified")
+	}
+
 	// Prepare request body
 	var bodyBytes []byte
 	if len(apiConfig.Body) > 0 {
@@ -85,16 +85,37 @@ func ExecuteAPI(apiConfig *config.APIConfig, saveResponses bool, cookie []*http.
 		return fmt.Errorf("failed to create request: %w", err)
 	}
 
+	if apiConfig.IncludeCredentials && apiConfig.Credentials != nil {
+		switch apiConfig.Credentials.Type {
+		case "basic":
+			req.SetBasicAuth(apiConfig.Credentials.Username, apiConfig.Credentials.Password)
+		case "bearer":
+			req.Header.Set("Authorization", "Bearer "+apiConfig.Credentials.Token)
+		default:
+			// Handle unknown credential types (optional)
+			return fmt.Errorf("unsupported credential type: %s", apiConfig.Credentials.Type)
+		}
+	}
+
 	// Add headers to the request
 	for key, value := range apiConfig.Headers {
 		if key != "Method" {
 			req.Header.Set(key, value)
 		}
 	}
-	
-	for _, c := range cookie {
-		req.AddCookie(c)
+
+	// add cookies in req header
+	includeCookie := true
+	if apiConfig.IncludeCookie != nil {
+		includeCookie = *apiConfig.IncludeCookie
 	}
+	fmt.Println(includeCookie)
+	if includeCookie {
+		for _, c := range cookie {
+			req.AddCookie(c)
+		}
+	}
+
 	// Send the HTTP request
 	client := &http.Client{}
 	resp, err := client.Do(req)
@@ -134,7 +155,7 @@ func ExecuteAPI(apiConfig *config.APIConfig, saveResponses bool, cookie []*http.
 		}
 	}
 
-	if saveResponses {
+	if saveResponses || apiConfig.SaveResponse {
 		requestDetails := map[string]interface{}{
 			"Method":  apiConfig.Headers["Method"],
 			"URL":     apiConfig.URL,
@@ -146,16 +167,22 @@ func ExecuteAPI(apiConfig *config.APIConfig, saveResponses bool, cookie []*http.
 			"Headers": resp.Header,
 			"Body":    responseBodyBytes.String(),
 		}
-		err := SaveResponseToFile("root.pkfile", requestDetails, responseDetails)
+
+		saveFilePath := "root.pkfile"
+		if apiConfig.FilePath != "" {
+			saveFilePath = apiConfig.FilePath
+		}
+
+		err := SaveResponseToFile(saveFilePath, requestDetails, responseDetails)
 		if err != nil {
 			return fmt.Errorf("\nfailed to save response: %w", err)
 		}
 		fmt.Println("\nResponse saved to response.json")
 	}
-	
+
 	cookies := resp.Cookies()
 	if len(cookies) > 0 {
-		SaveCookies("cookie.pkfile", cookies)
+		SaveCookies("root.cookie.pkfile", cookies)
 	}
 
 	if resp.StatusCode >= 400 {
