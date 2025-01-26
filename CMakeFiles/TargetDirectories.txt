@@ -1,3 +1,0 @@
-/home/pradeep/Desktop/PingFile/CMakeFiles/build_all.dir
-/home/pradeep/Desktop/PingFile/CMakeFiles/edit_cache.dir
-/home/pradeep/Desktop/PingFile/CMakeFiles/rebuild_cache.dir
