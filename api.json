@@ -1,7 +1,0 @@
-{
-    "name":"Ping hello world /",
-    "url":"http://localhost:3000/",
-    "headers":{
-        "Method":"GET"
-    }
-}

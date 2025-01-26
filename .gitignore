@@ -1,1 +1,7 @@
-pingfile
+*.pkfile
+
+*.yaml
+
+api.json
+
+!pingfile

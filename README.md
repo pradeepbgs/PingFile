@@ -15,76 +15,72 @@ PingFile is a command-line tool that allows you to execute API requests from con
 
 ## Installation
 
-### Linux
-
 1. Clone the repository:
    ```bash
-   git clone https://github.com/pradeepbgs/pingfile.git
+   git clone https://github.com/pradeepbgs/PingFile.git
    cd pingfile
    ```
-2. Build the binary:
-    ```bash 
-    go build -o pingfile .
+2. Go to bin directory:
+    ```bash
+    pradeep@pradeep:~/Desktop/PingFile$ ls
+    api.json    cmd            go.sum    postapi.yaml
+    bin         cookie.pkfile  internal  post.pkfile
+    build.sh    cookie.yaml    main.go   README.md
+    CMakeFiles  go.mod         pingfile  root.pkfile
+    pradeep@pradeep:~/Desktop/PingFile$ cd bin/
+    pradeep@pradeep:~/Desktop/PingFile/bin$ 
     ```
+   
 3. Install the binary globally to your system's PATH:
-    ```bash 
-    sudo ./pingfile install   
-    ```
-    This command will move the binary to /usr/local/bin and ensure it's accessible from anywhere in your terminal. Make sure the /usr/local/bin directory is in your PATH.
 
-4. After installation, you can run PingFile from anywhere using the following command:
+    **Based on your Operating System**
+
+    1. **For Linux**
+        ```bash 
+        sudo ./pingfile-linux install
+
+        OR ARM Based CPU
+        sudo /.pingfile-linux-arm install   
+        ```
+        This command will move the binary to /usr/local/bin and ensure it's accessible from anywhere in your terminal. Make sure the /usr/local/bin directory is in your PATH.
+    2. **For Windows**
+        ```bash
+         ./pingfile-windows.exe install
+         ```
+         1. Add the binary globally to your system's PATH:
+        
+            **Open Environment Variables:**
+            * Press `Win + S`, type Environment Variables, and select Edit the system environment variables.
+            * In the System Properties window, click the Environment Variables button.
+
+        2. Edit the PATH Variable:
+            * Under User Variables (for your user account), locate the `Path` variable and click Edit.
+            * Click New and add `C:\Users\dell\bin` to the list.
+            * Click OK to save changes and close all dialog boxes.
+
+        3. Add the .exe Extension
+
+        **Since pingfile is likely an executable binary, rename it to include the .exe extension:**
+        ```bash 
+        ren C:\Users\dell\bin\pingfile pingfile.exe
+        ```
+        OR manually go to Users\dell\bin and rename the file pingfile.exe
+    3. **For Macos**
+        ```bash 
+        sudo ./pingfile-macos install
+
+        OR ARM Based CPU
+        sudo /.pingfile-macos-arm install   
+        ```
+        **i dont know how to set path in macOS as i dont have but you know the process.**
+4. **After installation, you can run PingFile from anywhere using the following command:**
     ```bash
-    pingfile run <file>
-    ```
-Replace <file> with the path to your configuration file.    
+    C:\Users\dell\Desktop\PingFile>pingfile
+    Welcome to PingFile!
+    Use 'pingfile run <file>' to execute API requests from a file.
 
-### Windows 
-Download/clone the repository and open your CMD
-
-1. navigate to Pingfile Directory
-    ```bash
     C:\Users\dell\Desktop\PingFile>
     ```
-2. Build the binary:
-    ```bash 
-    go build -o pingfile.exe
-    ```
-3. Add Binary to usr/bin
-    ```bash
-    pingfile install
-    OR 
-    ./pingfile.exe install
-    OR 
-    pingfile.exe install
-    ```
-### 4. Add the binary globally to your system's PATH:
-   **Open Environment Variables:**
-   * Press `Win + S`, type Environment Variables, and select Edit the system environment variables.
-   * In the System Properties window, click the Environment Variables button.
-
-   **Edit the PATH Variable:**
-   * Under User Variables (for your user account), locate the `Path` variable and click Edit.
-   * Click New and add `C:\Users\dell\bin` to the list.
-   * Click OK to save changes and close all dialog boxes.
-
-   **Add the .exe Extension**
-
-  Since pingfile is likely an executable binary, rename it to include the .exe extension:
-  ```bash 
-  ren C:\Users\dell\bin\pingfile pingfile.exe
-  ```
-  OR manually go to Users\dell\bin and rename the file pingfile.exe
-
-  **then try this command**
-
-  You should see welcome message
-  ```bash
-  C:\Users\dell\Desktop\PingFile>pingfile
-  Welcome to PingFile!
-  Use 'pkfile run <file>' to execute API requests from a file.
-
-  C:\Users\dell\Desktop\PingFile>
-  ```
 
 
 
@@ -227,4 +223,3 @@ body:
   name: pradeep
   hobby: "coding"
 ```
-
