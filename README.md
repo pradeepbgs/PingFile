@@ -1,5 +1,26 @@
 # PingFile CLI
 
+```ocaml
+pradeep@pradeep:~/Desktop/PingFile$ pingfile run getAPI.json
+
+--------------- >>>>
+Running PingFile for: getAPI.json
+<<<<---------------
+
+Status Code: 200 OK
+
+Headers:
+  Cache-Control: [no-cache]
+  Content-Type: [text/plain; charset=utf-8]
+  X-Powered-By: [DieselJS]
+  Date: [Sat, 25 Jan 2025 08:00:10 GMT]
+  Content-Length: [12]
+
+Body:
+Hello World!
+
+API request executed successfully!
+```
 PingFile is a command-line tool that allows you to execute API requests from configuration files defined in JSON, YAML, or PKFILE formats. It helps automate and manage API testing and execution, making it easier to work with various API configurations from a single command.
 
 ---
@@ -182,8 +203,30 @@ Body:
 
 API request executed successfully!
 ```
+## How you should configurate your file?
+**Here is an Example with .json file**
+```json
+{
+    "name":"Ping hello world /",
+    "filePath":"pkfile/getApi.json",
+    "saveResponse":true,
+    "includeCookie":true,
+    "includeCredentials":false,
+    "url":"http://localhost:3000/",
+    "headers":{
+        "Method":"GET"
+    },
+    "credentials": {
+        "type": "basic",
+        "username": "${API_USERNAME}",
+        "password": "${API_PASSWORD}"
+    }
+}
+```
+**You can write simillar config for .yaml file aslo**
 
-### Here are those tree file formats
+
+## Here are those tree file formats
 **pkfile**
 
 it's just a json but with pkfile extension , in this extension you will get snippets

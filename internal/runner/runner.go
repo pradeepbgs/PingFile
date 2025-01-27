@@ -7,9 +7,12 @@ import (
 	"io"
 	"net/http"
 	"os"
+	"strings"
+	"time"
 
 	"github.com/fatih/color"
 	"github.com/pradeepbgs/pingfile/internal/config"
+	"gopkg.in/yaml.v3"
 )
 
 func SaveCookies(filename string, cookies []*http.Cookie) error {
@@ -59,10 +62,28 @@ func SaveResponseToFile(filename string, requestDetails map[string]interface{}, 
 		return fmt.Errorf("failed to create file: %w", err)
 	}
 	defer file.Close()
+	FileExtension := config.GetFileExtension(filename)
 
-	encoder := json.NewEncoder(file)
-	encoder.SetIndent("", " ")
-	return encoder.Encode(data)
+	switch FileExtension {
+	case ".json":
+		encoder := json.NewEncoder(file)
+		encoder.SetIndent("", " ")
+		return encoder.Encode(data)
+	
+	case ".yaml":
+		encoder := yaml.NewEncoder(file)
+		// encoder.SetIndent(1)
+		return encoder.Encode(data)
+	
+	case ".pkfile":
+		encoder := json.NewEncoder(file)
+		encoder.SetIndent("", " ")
+		return encoder.Encode(data)
+	
+	default:
+		return fmt.Errorf("unsupported file extension: %s , please user .josn , .yaml or .pkfile", FileExtension)
+	}
+	 
 }
 
 func ExecuteAPI(apiConfig *config.APIConfig, saveResponses bool, cookie []*http.Cookie) error {
@@ -92,7 +113,6 @@ func ExecuteAPI(apiConfig *config.APIConfig, saveResponses bool, cookie []*http.
 		case "bearer":
 			req.Header.Set("Authorization", "Bearer "+apiConfig.Credentials.Token)
 		default:
-			// Handle unknown credential types (optional)
 			return fmt.Errorf("unsupported credential type: %s", apiConfig.Credentials.Type)
 		}
 	}
@@ -109,8 +129,8 @@ func ExecuteAPI(apiConfig *config.APIConfig, saveResponses bool, cookie []*http.
 	if apiConfig.IncludeCookie != nil {
 		includeCookie = *apiConfig.IncludeCookie
 	}
-	fmt.Println(includeCookie)
-	if includeCookie {
+
+	if includeCookie && cookie != nil {
 		for _, c := range cookie {
 			req.AddCookie(c)
 		}
@@ -141,6 +161,7 @@ func ExecuteAPI(apiConfig *config.APIConfig, saveResponses bool, cookie []*http.
 
 	var responseBodyBytes bytes.Buffer
 	chunk := make([]byte, 4096)
+
 	for {
 		n, err := resp.Body.Read(chunk)
 		if n > 0 {
@@ -157,7 +178,6 @@ func ExecuteAPI(apiConfig *config.APIConfig, saveResponses bool, cookie []*http.
 
 	if saveResponses || apiConfig.SaveResponse {
 		requestDetails := map[string]interface{}{
-			"Method":  apiConfig.Headers["Method"],
 			"URL":     apiConfig.URL,
 			"Headers": apiConfig.Headers,
 			"Body":    apiConfig.Body,
@@ -168,7 +188,9 @@ func ExecuteAPI(apiConfig *config.APIConfig, saveResponses bool, cookie []*http.
 			"Body":    responseBodyBytes.String(),
 		}
 
-		saveFilePath := "root.pkfile"
+		timestamp := time.Now().Format("20060102_150405")
+		saveFilePath := fmt.Sprintf("response_%s_%s_%s.pkfile", apiConfig.Headers["Method"], strings.ReplaceAll(apiConfig.URL, "/", "_"), timestamp)
+
 		if apiConfig.FilePath != "" {
 			saveFilePath = apiConfig.FilePath
 		}
