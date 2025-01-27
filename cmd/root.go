@@ -7,12 +7,12 @@ import (
 )
 
 var rootCmd = &cobra.Command{
-	Use:   "pkfile",
+	Use:   "pingfile",
 	Short: "PingFile CLI to execute API requests from configuration files",
 	Long:  `PingFile CLI helps execute API requests defined in JSON, YAML, or PKFILE formats.`,
 	Run: func(cmd *cobra.Command, args []string) {
 		fmt.Println("Welcome to PingFile!")
-		fmt.Println("Use 'pkfile run <file>' to execute API requests from a file.")
+		fmt.Println("Use 'pingfile run <file>' to execute API requests from a file.")
 	},
 }
 

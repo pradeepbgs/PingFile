@@ -5,3 +5,5 @@
 api.json
 
 !pingfile
+pkfile
+.env
