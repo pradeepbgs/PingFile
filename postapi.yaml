@@ -1,8 +1,0 @@
-name: POST request
-url: http://localhost:3000/body
-headers:
-  Method: POST
-  Content-Type: application/json
-body:
-  name: pradeep
-  hobby: "coding"
