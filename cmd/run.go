@@ -15,6 +15,7 @@ import (
 )
 
 func exec(filepath string, wg *sync.WaitGroup,saveResponses bool,cookies []*http.Cookie) {
+	defer wg.Done()
 	fmt.Println("--------------- >>>>")
 	fmt.Printf("Running PingFile for: %s\n", filepath)
 	fmt.Println("<<<<---------------")
@@ -23,19 +24,16 @@ func exec(filepath string, wg *sync.WaitGroup,saveResponses bool,cookies []*http
 	
 	if err != nil {
 		log.Printf("Error parsing file: %v", err)
-		defer wg.Done()
 		return
 	}
 
 	err = runner.ExecuteAPI(apiConfig,saveResponses,cookies)
 	if err != nil {
 		log.Printf("Request execution failed: %v", err)
-		wg.Done()
 		return
 	}
 
 	fmt.Println("\nAPI request executed successfully for:", filepath)
-	defer wg.Done()
 }
 
 func execSequentially(filepath string,saveResponses bool,cookies []*http.Cookie) {
@@ -64,6 +62,7 @@ var runCmd = &cobra.Command{
 	Long:  `The run command executes API requests defined in JSON, YAML, or PKFILE formats.`,
 	
 	Run: func(cmd *cobra.Command, args []string) {
+		runtime.GOMAXPROCS(runtime.NumCPU())
 		filepaths := args
 
 		saveResponses , _ := cmd.Flags().GetBool("save")
@@ -87,7 +86,6 @@ var runCmd = &cobra.Command{
 					exec(file, &wg, saveResponses, cookies)
 				}(filepath)
 			}
-
 			wg.Wait()
 
 		} else {
@@ -134,7 +132,7 @@ func installBinary() {
 	destPath := filepath.Join(destDir, "pingfile")
 	err = os.Rename(binaryPath, destPath)
 	if err != nil {
-		log.Fatal("Error installing Binary")
+		log.Fatal("Error installing Binary",err)
 	}
 	fmt.Printf("PingFile installed to %s\n", destPath)
 	fmt.Println("Make sure the directory is in your PATH.")
