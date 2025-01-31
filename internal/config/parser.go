@@ -16,6 +16,11 @@ type Credentials struct{
 	Token    string `json:"token" yaml:"token"`
 }
 
+type FileItem struct{
+	Name string `json:"name" yaml:"name"`
+	Path string `json:"path" yaml:"path"`
+}
+
 type APIConfig struct {
 	Name         string                 `json:"name" yaml:"name"`
 	SaveResponse bool                   `json:"saveResponse" yaml:"saveResponse"`
@@ -25,6 +30,7 @@ type APIConfig struct {
 	URL          string                 `json:"url" yaml:"url"`
 	Headers      map[string]string      `json:"headers" yaml:"headers"`
 	Body         map[string]interface{} `json:"body" yaml:"body"`
+	File      []FileItem             `json:"file" yaml:"file"`
 	Credentials  *Credentials            `json:"credentials" yaml:"credentials"`
 }
 

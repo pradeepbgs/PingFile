@@ -116,7 +116,9 @@ Execute API requests from a configuration file.
 
 suppose you made an api endpoint , now you want to test your api if its working or not
 
-getAPI.json
+**A normal GET Request**
+
+getrequest.json
 ```json
 {
     "name":"Ping hello world /",
@@ -128,25 +130,25 @@ getAPI.json
 ```
 ### Run the command
 **Note**
- * here you can pass --multithread / -m command 
- * this way you can make multiple req multithreaded
+ * here you can pass --multithread / -m flag for multithreaded running apis 
+ * you can pass --save / -s to save the response
 
 ```bash
-    pingfile run getAPI.json 
+    pingfile run getrequest.json 
 
     OR 
 
-    pingfile run getAPI.json PostAPI.json --multithread
+    pingfile run getrequest.json postrequest.json --multithread -s
 ```
 ### Example output
 **For a successful request:**
 
 in your terminal
 ```javascript
-pradeep@pradeep:~/Desktop/PingFile$ pingfile run getAPI.json
+pradeep@pradeep:~/Desktop/PingFile$ pingfile run getrequest.json
 
 --------------- >>>>
-Running PingFile for: getAPI.json
+Running PingFile for: getrequest.json
 <<<<---------------
 
 Status Code: 200 OK
@@ -161,9 +163,38 @@ Headers:
 Body:
 Hello World!
 
-API request executed successfully!
+API request executed successfully for getrequest.json
 ```
-**A Post Request**
+
+### 1. Post Request with files
+postwithfiles.json
+```json
+{
+    "name": "POST req to /body with files",
+    "url": "http://localhost:3000/body",
+    "filePath": "pkfile/postwithfile.json",
+    "saveResponse": false,
+    "includeCookie": true,
+    "headers": {
+        "Method": "POST"
+    },
+    "body": {
+        "name": "pradeep",
+        "password": "password hi hai",
+    },
+    "file": [
+            {
+                "name": "avatar",
+                "path": "/home/pradeep/Pictures/project1.png"
+            },
+            {
+                "name":"avatar2",
+                "path":"/home/pradeep/Pictures/project1.png"
+            }
+        ]
+}
+```
+### 2. A Noraml Post Request
 
 postapi.yaml
 
@@ -178,31 +209,6 @@ body:
   hobby: "coding"
 ```
 
-### Example output
-**For a successful request:**
-
-in your terminal
-```javascript
-pradeep@pradeep:~/Desktop/PingFile$ pingfile run postapi.yaml 
-
---------------- >>>>
-Running PingFile for: postapi.yaml
-<<<<---------------
-
-Status Code: 200 OK
-
-Headers:
-  Cache-Control: [no-cache]
-  Content-Type: [application/json; charset=utf-8]
-  X-Powered-By: [DieselJS]
-  Date: [Sat, 25 Jan 2025 08:11:08 GMT]
-  Content-Length: [70]
-
-Body:
-{"status":true,"data":{"hobby":"coding","name":"pradeep"}}
-
-API request executed successfully!
-```
 ## How you should configurate your file?
 **Here is an Example with .json file**
 ```json

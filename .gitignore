@@ -7,3 +7,6 @@ api.json
 !pingfile
 pkfile
 .env
+runapi.sh
+build.sh
+zdiesel

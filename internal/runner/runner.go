@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"mime/multipart"
 	"net/http"
 	"os"
 	"strings"
@@ -69,21 +70,20 @@ func SaveResponseToFile(filename string, requestDetails map[string]interface{}, 
 		encoder := json.NewEncoder(file)
 		encoder.SetIndent("", " ")
 		return encoder.Encode(data)
-	
+
 	case ".yaml":
 		encoder := yaml.NewEncoder(file)
-		// encoder.SetIndent(1)
 		return encoder.Encode(data)
-	
+
 	case ".pkfile":
 		encoder := json.NewEncoder(file)
 		encoder.SetIndent("", " ")
 		return encoder.Encode(data)
-	
+
 	default:
 		return fmt.Errorf("unsupported file extension: %s , please user .josn , .yaml or .pkfile", FileExtension)
 	}
-	 
+
 }
 
 func ExecuteAPI(apiConfig *config.APIConfig, saveResponses bool, cookie []*http.Cookie) error {
@@ -101,9 +101,57 @@ func ExecuteAPI(apiConfig *config.APIConfig, saveResponses bool, cookie []*http.
 	}
 
 	// Create the HTTP request
-	req, err := http.NewRequest(apiConfig.Headers["Method"], apiConfig.URL, bytes.NewBuffer(bodyBytes))
-	if err != nil {
-		return fmt.Errorf("failed to create request: %w", err)
+	var req *http.Request
+	var err error
+
+	hasFile := len(apiConfig.File) > 0
+	
+	if hasFile {
+		var requestBody bytes.Buffer
+		// body := &bytes.Buffer{}
+		writer := multipart.NewWriter(&requestBody)
+
+		for key, value := range apiConfig.Body {
+			err := writer.WriteField(key,fmt.Sprintf("%v",value))
+			if err != nil{
+				return fmt.Errorf("failed to write field: %w", err)
+			}
+		}	
+		// attach files
+		for _,fileItem := range apiConfig.File{
+			file,err := os.Open(fileItem.Path)
+			if err != nil{
+				return fmt.Errorf("failed to open file: %w", err)
+			}
+			defer file.Close()
+
+			part, err := writer.CreateFormFile(fileItem.Name, fileItem.Path)
+			if err != nil{
+				return fmt.Errorf("failed to create form file: %w", err)
+			}
+			_, err = io.Copy(part, file)
+			if err != nil {
+				return fmt.Errorf("failed to copy file content: %w", err)
+			}
+		}
+
+		if err := writer.Close(); err != nil {
+			return fmt.Errorf("failed to close writer: %w", err)
+		}
+
+		req, err = http.NewRequest(apiConfig.Headers["Method"], apiConfig.URL, &requestBody)
+		if err != nil {
+			return fmt.Errorf("failed to create request: %w", err)
+		}
+		req.Header.Set("Content-Type", writer.FormDataContentType())
+
+	} else {
+		// esle ping normal json  request	
+		req, err = http.NewRequest(apiConfig.Headers["Method"], apiConfig.URL, bytes.NewBuffer(bodyBytes))
+		if err != nil {
+			return fmt.Errorf("failed to create request: %w", err)
+		}
+		req.Header.Set("Content-Type", "application/json")
 	}
 
 	if apiConfig.IncludeCredentials && apiConfig.Credentials != nil {
@@ -117,14 +165,14 @@ func ExecuteAPI(apiConfig *config.APIConfig, saveResponses bool, cookie []*http.
 		}
 	}
 
-	// Add headers to the request
+	// Add other headers to the request
 	for key, value := range apiConfig.Headers {
 		if key != "Method" {
 			req.Header.Set(key, value)
 		}
 	}
 
-	// add cookies in req header
+	// add cookies if enabled
 	includeCookie := true
 	if apiConfig.IncludeCookie != nil {
 		includeCookie = *apiConfig.IncludeCookie
