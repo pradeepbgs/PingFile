@@ -6,6 +6,8 @@ import (
 	"github.com/spf13/cobra"
 )
 
+const version = "1.0.0"
+
 var rootCmd = &cobra.Command{
 	Use:   "pingfile",
 	Short: "PingFile CLI to execute API requests from configuration files",
@@ -14,6 +16,11 @@ var rootCmd = &cobra.Command{
 		fmt.Println("Welcome to PingFile!")
 		fmt.Println("Use 'pingfile run <file>' to execute API requests from a file.")
 	},
+	Version: version,
+}
+
+func init() {
+	rootCmd.SetVersionTemplate(`{{printf "%s version %s\n" .Name .Version}}`)
 }
 
 func Execute() {
