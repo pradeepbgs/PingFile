@@ -9,6 +9,7 @@ import (
 	"runtime"
 	"sync"
 
+	"github.com/fatih/color"
 	"github.com/pradeepbgs/pingfile/internal/config"
 	"github.com/pradeepbgs/pingfile/internal/runner"
 	"github.com/spf13/cobra"
@@ -16,9 +17,12 @@ import (
 
 func exec(filepath string, wg *sync.WaitGroup,saveResponses bool,cookies []*http.Cookie) {
 	defer wg.Done()
-	fmt.Println("--------------- >>>>")
-	fmt.Printf("Running PingFile for: %s\n", filepath)
-	fmt.Println("<<<<---------------")
+	
+	greenColor := color.New(color.FgGreen).SprintFunc()
+	BlueColor := color.New(color.FgCyan).SprintFunc()
+	fmt.Println(BlueColor("--------------- >>>>"))
+	fmt.Printf(greenColor("Running PingFile for: %s\n") ,filepath)
+	fmt.Println(BlueColor("<<<<---------------"))
 	
 	var apiConfig, err = config.Parser(filepath)
 	
@@ -37,9 +41,11 @@ func exec(filepath string, wg *sync.WaitGroup,saveResponses bool,cookies []*http
 }
 
 func execSequentially(filepath string,saveResponses bool,cookies []*http.Cookie) {
-	fmt.Println("--------------- >>>>")
-	fmt.Printf("Running PingFile for: %s\n", filepath)
-	fmt.Println("<<<<---------------")
+	greenColor := color.New(color.FgGreen).SprintFunc()
+	BlueColor := color.New(color.FgCyan).SprintFunc()
+	fmt.Println(BlueColor("--------------- >>>>"))
+	fmt.Printf(greenColor("Running PingFile for: %s\n") ,filepath)
+	fmt.Println(BlueColor("<<<<---------------"))
 
 	var apiConfig, err = config.Parser(filepath)
 	if err != nil {

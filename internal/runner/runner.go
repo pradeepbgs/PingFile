@@ -10,81 +10,11 @@ import (
 	"os"
 	"strings"
 	"time"
-
 	"github.com/fatih/color"
 	"github.com/pradeepbgs/pingfile/internal/config"
-	"gopkg.in/yaml.v3"
 )
 
-func SaveCookies(filename string, cookies []*http.Cookie) error {
-	file, err := os.OpenFile(filename, os.O_RDWR|os.O_CREATE, 0644)
 
-	if err != nil {
-		return fmt.Errorf("failed to open or create file: %w", err)
-	}
-	defer file.Close()
-
-	existingCookie, _ := config.ParseCookie("root.cookie.pkfile")
-
-	cookieMap := make(map[string]*http.Cookie)
-	for _, c := range existingCookie {
-		cookieMap[c.Name] = c
-	}
-
-	for _, c := range cookies {
-		cookieMap[c.Name] = c
-	}
-
-	var updatedCookie []*http.Cookie
-	for _, c := range cookieMap {
-		updatedCookie = append(updatedCookie, c)
-	}
-
-	if err := file.Truncate(0); err != nil {
-		return fmt.Errorf("failed to truncate file: %w", err)
-	}
-	if _, err := file.Seek(0, 0); err != nil {
-		return fmt.Errorf("failed to seek file: %w", err)
-	}
-
-	encoder := json.NewEncoder(file)
-	encoder.SetIndent("", " ")
-	return encoder.Encode(updatedCookie)
-}
-
-func SaveResponseToFile(filename string, requestDetails map[string]interface{}, responseDetails map[string]interface{}) error {
-	data := map[string]interface{}{
-		"request":  requestDetails,
-		"response": responseDetails,
-	}
-
-	file, err := os.OpenFile(filename, os.O_RDWR|os.O_CREATE, 0644)
-	if err != nil {
-		return fmt.Errorf("failed to create file: %w", err)
-	}
-	defer file.Close()
-	FileExtension := config.GetFileExtension(filename)
-
-	switch FileExtension {
-	case ".json":
-		encoder := json.NewEncoder(file)
-		encoder.SetIndent("", " ")
-		return encoder.Encode(data)
-
-	case ".yaml":
-		encoder := yaml.NewEncoder(file)
-		return encoder.Encode(data)
-
-	case ".pkfile":
-		encoder := json.NewEncoder(file)
-		encoder.SetIndent("", " ")
-		return encoder.Encode(data)
-
-	default:
-		return fmt.Errorf("unsupported file extension: %s , please user .josn , .yaml or .pkfile", FileExtension)
-	}
-
-}
 
 func ExecuteAPI(apiConfig *config.APIConfig, saveResponses bool, cookie []*http.Cookie) error {
 	if apiConfig.Headers["Method"] == "" {
@@ -201,10 +131,12 @@ func ExecuteAPI(apiConfig *config.APIConfig, saveResponses bool, cookie []*http.
 	// Print the response details in a cool way
 	fmt.Println()
 	fmt.Printf("%s: %s\n", statusColor("Status Code"), resp.Status)
+	
 	fmt.Println(headerColor("\nHeaders:"))
 	for key, values := range resp.Header {
 		fmt.Printf("  %s: %s\n", key, values)
 	}
+
 	fmt.Println(bodyColor("\nBody:"))
 
 	var responseBodyBytes bytes.Buffer
@@ -243,7 +175,7 @@ func ExecuteAPI(apiConfig *config.APIConfig, saveResponses bool, cookie []*http.
 			saveFilePath = apiConfig.FilePath
 		}
 
-		err := SaveResponseToFile(saveFilePath, requestDetails, responseDetails)
+		err := config.SaveResponseToFile(saveFilePath, requestDetails, responseDetails)
 		if err != nil {
 			return fmt.Errorf("\nfailed to save response: %w", err)
 		}
@@ -252,7 +184,7 @@ func ExecuteAPI(apiConfig *config.APIConfig, saveResponses bool, cookie []*http.
 
 	cookies := resp.Cookies()
 	if len(cookies) > 0 {
-		SaveCookies("root.cookie.pkfile", cookies)
+		config.SaveCookies("root.cookie.pkfile", cookies)
 	}
 
 	if resp.StatusCode >= 400 {
