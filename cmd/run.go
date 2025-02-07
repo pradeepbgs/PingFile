@@ -1,7 +1,7 @@
 package cmd
 
 import (
-	"bytes"
+	"strings"
 	"fmt"
 	"log"
 	"net/http"
@@ -16,7 +16,6 @@ import (
 	"github.com/spf13/cobra"
 )
 
-var OutputBuffer bytes.Buffer
 
 func exec(filepath string, saveResponses bool, cookies []*http.Cookie) {
 	var apiConfig, err = config.Parser(filepath)
@@ -25,14 +24,36 @@ func exec(filepath string, saveResponses bool, cookies []*http.Cookie) {
 		return
 	}
 
-	buffer, err := runner.ExecuteAPI(apiConfig, saveResponses, cookies, filepath)
-	if err != nil {
-		log.Printf("Request execution failed: %v", err)
-		return
-	}
+	switch v := apiConfig.(type) {
+	case *config.APIConfig:
+		buffer, err := runner.ExecuteAPI(v, saveResponses, cookies, filepath)
+		if err != nil {
+			log.Printf("Request execution failed: %v", err)
+			return
+		}
+		fmt.Print(buffer)
+	case *config.GroupApiConfig:
+		for i := range v.APIs {
+			api_Config := &v.APIs[i]
+			if !strings.HasPrefix(api_Config.URL, "http://") && !strings.HasPrefix(api_Config.URL, "https://") {
+				api_Config.URL = v.BaseUrl + api_Config.URL
+			}
 
-	// OutputBuffer.Write(buffer.Bytes())
-	fmt.Print(buffer)
+			if api_Config.Run != nil && !*api_Config.Run {
+				fmt.Printf("\nRunning config is disabled for %s file, skipping execution.\n", api_Config.URL)
+				continue
+			}
+
+			buffer, err := runner.ExecuteAPI(api_Config, saveResponses, cookies, filepath)
+			if err != nil {
+				log.Printf("Request execution failed: %v", err)
+				return
+			}
+			fmt.Print(buffer)
+		}
+	default:
+		log.Println("Unknown config type")
+	}
 }
 
 func execSequentially(filepath string, saveResponses bool, cookies []*http.Cookie) {
@@ -42,13 +63,37 @@ func execSequentially(filepath string, saveResponses bool, cookies []*http.Cooki
 		return
 	}
 
-	buffer, err := runner.ExecuteAPI(apiConfig, saveResponses, cookies, filepath)
-	if err != nil {
-		log.Printf("Request execution failed: %v", err)
-		return
+	switch v := apiConfig.(type) {
+	case *config.APIConfig:
+		buffer, err := runner.ExecuteAPI(v, saveResponses, cookies, filepath)
+		if err != nil {
+			log.Printf("Request execution failed: %v", err)
+			return
+		}
+		fmt.Print(buffer)
+	case *config.GroupApiConfig:
+		for i := range v.APIs {
+			api_Config := &v.APIs[i]
+
+			if !strings.HasPrefix(api_Config.URL, "http://") && !strings.HasPrefix(api_Config.URL, "https://") {
+				api_Config.URL = v.BaseUrl + api_Config.URL
+			}
+
+			if api_Config.Run != nil && !*api_Config.Run {
+				fmt.Printf("\nRunning config is disabled for %s file, skipping execution.\n", api_Config.URL)
+				continue
+			}
+
+			buffer, err := runner.ExecuteAPI(api_Config, saveResponses, cookies, filepath)
+			if err != nil {
+				log.Printf("Request execution failed: %v", err)
+				return
+			}
+			fmt.Print(buffer)
+		}
+	default:
+		log.Println("Unknown config type")
 	}
-	fmt.Print(buffer)
-	// OutputBuffer.Write(buffer.Bytes())
 }
 
 var runCmd = &cobra.Command{
@@ -59,7 +104,6 @@ var runCmd = &cobra.Command{
 	Run: func(cmd *cobra.Command, args []string) {
 		runtime.GOMAXPROCS(runtime.NumCPU())
 		filepaths := args
-
 		greenColor := color.New(color.FgGreen).SprintFunc()
 		BlueColor := color.New(color.FgCyan).SprintFunc()
 		fmt.Println(BlueColor("--------------- >>>>"))
@@ -78,7 +122,6 @@ var runCmd = &cobra.Command{
 			log.Printf("Error parsing cookies: %v", err)
 			cookies = nil
 		}
-
 
 		if multiThread {
 			var wg sync.WaitGroup

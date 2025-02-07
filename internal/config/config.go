@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"log"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -14,125 +13,157 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
-type Credentials struct{
-	Type string 	`json:"type" yaml:"type"`
+type Credentials struct {
+	Type     string `json:"type" yaml:"type"`
 	Username string `json:"username" yaml:"username"`
 	Password string `json:"password" yaml:"password"`
 	Token    string `json:"token" yaml:"token"`
 }
 
-type FileItem struct{
+type FileItem struct {
 	Name string `json:"name" yaml:"name"`
 	Path string `json:"path" yaml:"path"`
 }
 
 type APIConfig struct {
-	Name         string                 `json:"name" yaml:"name"`
-	SaveResponse bool                   `json:"saveResponse" yaml:"saveResponse"`
-	FilePath     string                 `json:"filePath" yaml:"filePath"`
-	IncludeCookie     *bool                  `json:"includeCookie" yaml:"includeCookie"`
-	IncludeCredentials bool              `json:"includeCredentials" yaml:"includeCredentials"`
-	URL          string                 `json:"url" yaml:"url"`
-	Headers      map[string]string      `json:"headers" yaml:"headers"`
-	Body         map[string]interface{} `json:"body" yaml:"body"`
-	File      []FileItem             `json:"file" yaml:"file"`
-	Credentials  *Credentials            `json:"credentials" yaml:"credentials"`
+	Name               string                 `json:"name" yaml:"name"`
+	Description        string                 `json:"description" yaml:"description"`
+	Run 			   *bool					  `json:"run" yaml:"run"`
+	SaveResponse       bool                   `json:"saveResponse" yaml:"saveResponse"`
+	FilePath           string                 `json:"filePath" yaml:"filePath"`
+	IncludeCookie      *bool                  `json:"includeCookie" yaml:"includeCookie"`
+	IncludeCredentials bool                   `json:"includeCredentials" yaml:"includeCredentials"`
+	URL                string                 `json:"url" yaml:"url"`
+	Headers            map[string]string      `json:"headers" yaml:"headers"`
+	Body               map[string]interface{} `json:"body" yaml:"body"`
+	File               []FileItem             `json:"file" yaml:"file"`
+	Credentials        *Credentials           `json:"credentials" yaml:"credentials"`
+}
+
+type GroupApiConfig struct {
+	Name        string      `json:"name" yaml:"name"`
+	Description string      `json:"description" yaml:"description"`
+	Version     string      `json:"version" yaml:"version"`
+	BaseUrl     string      `json:"baseUrl" yaml:"baseUrl"`
+	APIs        []APIConfig `json:"apis" yaml:"apis"`
 }
 
 func GetFileExtension(filePath string) string {
-    return strings.ToLower(filepath.Ext(filePath))
+	return strings.ToLower(filepath.Ext(filePath))
 }
 
 func replaceEnvVars(value string) string {
-	resolved := os.ExpandEnv(value)
-	return resolved
+	return os.ExpandEnv(value)
 }
 
-func Parser(filepath string) (*APIConfig,error) {
+func Parser(filepath string) (interface{}, error) {
 	if filepath == "" {
-		log.Fatal("File path is empty")
 		return nil, errors.New("file path is empty")
 	}
 
 	if _, err := os.Stat(filepath); os.IsNotExist(err) {
-		return nil,fmt.Errorf("file not found: %s", filepath)
+		return nil, fmt.Errorf("file not found: %s", filepath)
 	}
 
 	ext := GetFileExtension(filepath)
-	var config *APIConfig
+	var result interface{}
 	var err error
 
-    switch ext {
-    case ".json":
-        config, err = ParseJSON(filepath)
-    case ".yaml", ".yml":
-        config , err =  ParseYAML(filepath)
-    case ".pkfile":
-        config,err = ParsePKFile(filepath)
-    default:
-        return nil, fmt.Errorf("unsupported file format %s; supported formats: pkfile, yaml, json", ext)
+	switch ext {
+	case ".json":
+		result, err = ParseJSON(filepath)
+	case ".yaml", ".yml":
+		result, err = ParseYAML(filepath)
+	case ".pkfile":
+		result, err = ParsePKFile(filepath)
+	default:
+		return nil, fmt.Errorf("unsupported file format %s; supported formats: pkfile, yaml, json", ext)
 	}
 
 	if err != nil {
 		return nil, err
 	}
 
-	if config.Credentials != nil {
-		config.Credentials.Username = replaceEnvVars(config.Credentials.Username)
-		config.Credentials.Password = replaceEnvVars(config.Credentials.Password)
-		config.Credentials.Token = replaceEnvVars(config.Credentials.Token)
+	if group, ok := result.(*GroupApiConfig); ok {
+		if len(group.APIs) == 0 {
+			return nil, fmt.Errorf("group API configuration is empty")
+		}
+		for i := range group.APIs {
+			if group.APIs[i].Credentials == nil {
+				group.APIs[i].Credentials = &Credentials{}
+			}
+			group.APIs[i].Credentials.Username = replaceEnvVars(group.APIs[i].Credentials.Username)
+			group.APIs[i].Credentials.Password = replaceEnvVars(group.APIs[i].Credentials.Password)
+			group.APIs[i].Credentials.Token = replaceEnvVars(group.APIs[i].Credentials.Token)
+		}
+	} else if api, ok := result.(*APIConfig); ok {
+		if api.Credentials == nil {
+			api.Credentials = &Credentials{}
+		}
+		api.Credentials.Username = replaceEnvVars(api.Credentials.Username)
+		api.Credentials.Password = replaceEnvVars(api.Credentials.Password)
+		api.Credentials.Token = replaceEnvVars(api.Credentials.Token)
 	}
 
-	return config,nil
+	return result, nil
 }
 
-
-func ParseYAML(filePath string) (*APIConfig, error) {
-    data, err := os.ReadFile(filePath)
-    if err != nil {
-        return nil, err
-    }
-
-    var config APIConfig
-    if err := yaml.Unmarshal(data, &config); err != nil {
-        return nil, err
-    }
-
-    return &config, nil
-}
-
-
-
-func ParsePKFile(filepath string) (*APIConfig,error)  {
-	
-	data,err := os.ReadFile(filepath)
-	if err != nil{
-		return nil,  fmt.Errorf("error opening file: %v", err)
+func ParseYAML(filePath string) (interface{}, error) {
+	data, err := os.ReadFile(filePath)
+	if err != nil {
+		return nil, err
 	}
-	
+
+	var groupConfig GroupApiConfig
+	if err := yaml.Unmarshal(data, &groupConfig); err == nil && len(groupConfig.APIs) > 0 {
+		return &groupConfig, nil
+	}
+
 	var config APIConfig
-	if err = json.Unmarshal(data,&config); err != nil {
-		return nil, fmt.Errorf("error parsing JSON: %v", err)
+	if err := yaml.Unmarshal(data, &config); err == nil {
+		return &config, nil
 	}
 
-	return &config , nil
+	return nil, fmt.Errorf("invalid YAML configuration format")
 }
 
-func ParseJSON(filepath string) (*APIConfig,error) {
+func ParsePKFile(filepath string) (interface{}, error) {
 	data, err := os.ReadFile(filepath)
-    if err != nil {
-        return nil, err
-    }
+	if err != nil {
+		return nil, fmt.Errorf("error opening file: %v", err)
+	}
 
-	var config APIConfig
-	err = json.Unmarshal(data, &config)
+	var groupConfig GroupApiConfig
+	if err := json.Unmarshal(data, &groupConfig); err == nil && len(groupConfig.APIs) > 0 {
+		return &groupConfig, nil
+	}
+
+	var apiConfig APIConfig
+	if err := json.Unmarshal(data, &apiConfig); err == nil {
+		return &apiConfig, nil
+	}
+
+	return nil, fmt.Errorf("invalid configuration file format")
+}
+
+func ParseJSON(filepath string) (interface{}, error) {
+	data, err := os.ReadFile(filepath)
 	if err != nil {
 		return nil, err
 	}
 
-	return &config,nil
-}
+	var groupConfig GroupApiConfig
+	if err := json.Unmarshal(data, &groupConfig); err == nil && len(groupConfig.APIs) > 0 {
+		return &groupConfig, nil
+	}
 
+	var apiConfig APIConfig
+	if err := json.Unmarshal(data, &apiConfig); err == nil {
+		return &apiConfig, nil
+	}
+
+	return nil, fmt.Errorf("invalid configuration file format")
+}
 
 type CookieData struct {
 	Name     string `json:"name"`
@@ -144,58 +175,54 @@ type CookieData struct {
 	HttpOnly bool   `json:"http_only"`
 }
 
-func ParseCookie (filename string) ([]*http.Cookie , error) {
-	file,err := os.Open(filename)
+func ParseCookie(filename string) ([]*http.Cookie, error) {
+	file, err := os.Open(filename)
 	if err != nil {
-		return nil,err
+		return nil, err
 	}
 	defer file.Close()
 
 	var cookieList []CookieData
 	if err := json.NewDecoder(file).Decode(&cookieList); err != nil {
-		return nil,err
+		return nil, err
 	}
 
 	var cookies []*http.Cookie
 	for _, cookieData := range cookieList {
-
 		if cookieData.Name == "" || cookieData.Value == "" {
 			continue
 		}
 
 		var expires time.Time
-		if cookieData.Expires != ""{
-			expires ,_ = time.Parse(time.RFC1123, cookieData.Expires)
+		if cookieData.Expires != "" {
+			expires, _ = time.Parse(time.RFC1123, cookieData.Expires)
 		}
 
 		cookies = append(cookies, &http.Cookie{
-			Name: cookieData.Name,
-			Value: cookieData.Value,
-			Path: cookieData.Path,
-			Domain: cookieData.Domain,
-			Expires: expires,
-			Secure: cookieData.Secure,
+			Name:     cookieData.Name,
+			Value:    cookieData.Value,
+			Path:     cookieData.Path,
+			Domain:   cookieData.Domain,
+			Expires:  expires,
+			Secure:   cookieData.Secure,
 			HttpOnly: cookieData.HttpOnly,
 		})
 	}
 
-	return cookies,nil
-	
+	return cookies, nil
 }
-
 
 func SaveCookies(filename string, cookies []*http.Cookie) error {
 	file, err := os.OpenFile(filename, os.O_RDWR|os.O_CREATE, 0644)
-
 	if err != nil {
 		return fmt.Errorf("failed to open or create file: %w", err)
 	}
 	defer file.Close()
 
-	existingCookie, _ := ParseCookie("root.cookie.pkfile")
+	existingCookies, _ := ParseCookie(filename)
 
 	cookieMap := make(map[string]*http.Cookie)
-	for _, c := range existingCookie {
+	for _, c := range existingCookies {
 		cookieMap[c.Name] = c
 	}
 
@@ -203,9 +230,9 @@ func SaveCookies(filename string, cookies []*http.Cookie) error {
 		cookieMap[c.Name] = c
 	}
 
-	var updatedCookie []*http.Cookie
+	var updatedCookies []*http.Cookie
 	for _, c := range cookieMap {
-		updatedCookie = append(updatedCookie, c)
+		updatedCookies = append(updatedCookies, c)
 	}
 
 	if err := file.Truncate(0); err != nil {
@@ -217,7 +244,7 @@ func SaveCookies(filename string, cookies []*http.Cookie) error {
 
 	encoder := json.NewEncoder(file)
 	encoder.SetIndent("", " ")
-	return encoder.Encode(updatedCookie)
+	return encoder.Encode(updatedCookies)
 }
 
 func SaveResponseToFile(filename string, requestDetails map[string]interface{}, responseDetails map[string]interface{}) error {
@@ -231,6 +258,7 @@ func SaveResponseToFile(filename string, requestDetails map[string]interface{}, 
 		return fmt.Errorf("failed to create file: %w", err)
 	}
 	defer file.Close()
+
 	FileExtension := GetFileExtension(filename)
 
 	switch FileExtension {
@@ -249,7 +277,6 @@ func SaveResponseToFile(filename string, requestDetails map[string]interface{}, 
 		return encoder.Encode(data)
 
 	default:
-		return fmt.Errorf("unsupported file extension: %s , please user .josn , .yaml or .pkfile", FileExtension)
+		return fmt.Errorf("unsupported file extension: %s, please use .json, .yaml, or .pkfile", FileExtension)
 	}
-
 }
