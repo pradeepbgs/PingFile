@@ -4,24 +4,24 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"github.com/fatih/color"
+	"github.com/pradeepbgs/pingfile/internal/config"
 	"io"
 	"mime/multipart"
 	"net/http"
 	"os"
 	"strings"
 	"time"
-	"github.com/fatih/color"
-	"github.com/pradeepbgs/pingfile/internal/config"
 )
 
+func ExecuteAPI(apiConfig *config.APIConfig, saveResponses bool, cookie []*http.Cookie, filepath string) (*bytes.Buffer, error) {
+	var outputBuffer bytes.Buffer
 
-
-func ExecuteAPI(apiConfig *config.APIConfig, saveResponses bool, cookie []*http.Cookie) error {
 	if apiConfig.Headers["Method"] == "" {
-		return fmt.Errorf("HTTP method not specified")
+		return &outputBuffer, fmt.Errorf("HTTP method not specified")
 	}
 	if apiConfig.URL == "" {
-		return fmt.Errorf("URL not specified")
+		return &outputBuffer, fmt.Errorf("URL not specified")
 	}
 
 	// Prepare request body
@@ -35,51 +35,50 @@ func ExecuteAPI(apiConfig *config.APIConfig, saveResponses bool, cookie []*http.
 	var err error
 
 	hasFile := len(apiConfig.File) > 0
-	
+
 	if hasFile {
 		var requestBody bytes.Buffer
-		// body := &bytes.Buffer{}
 		writer := multipart.NewWriter(&requestBody)
 
 		for key, value := range apiConfig.Body {
-			err := writer.WriteField(key,fmt.Sprintf("%v",value))
-			if err != nil{
-				return fmt.Errorf("failed to write field: %w", err)
+			err := writer.WriteField(key, fmt.Sprintf("%v", value))
+			if err != nil {
+				return &outputBuffer, fmt.Errorf("failed to write field: %w", err)
 			}
-		}	
+		}
 		// attach files
-		for _,fileItem := range apiConfig.File{
-			file,err := os.Open(fileItem.Path)
-			if err != nil{
-				return fmt.Errorf("failed to open file: %w", err)
+		for _, fileItem := range apiConfig.File {
+			file, err := os.Open(fileItem.Path)
+			if err != nil {
+				return &outputBuffer, fmt.Errorf("failed to open file: %w", err)
 			}
 			defer file.Close()
 
 			part, err := writer.CreateFormFile(fileItem.Name, fileItem.Path)
-			if err != nil{
-				return fmt.Errorf("failed to create form file: %w", err)
+			if err != nil {
+				return &outputBuffer, fmt.Errorf("failed to create form file: %w", err)
 			}
 			_, err = io.Copy(part, file)
 			if err != nil {
-				return fmt.Errorf("failed to copy file content: %w", err)
+				return &outputBuffer, fmt.Errorf("failed to copy file content: %w", err)
 			}
 		}
 
 		if err := writer.Close(); err != nil {
-			return fmt.Errorf("failed to close writer: %w", err)
+			return &outputBuffer, fmt.Errorf("failed to close writer: %w", err)
 		}
 
 		req, err = http.NewRequest(apiConfig.Headers["Method"], apiConfig.URL, &requestBody)
 		if err != nil {
-			return fmt.Errorf("failed to create request: %w", err)
+			return &outputBuffer, fmt.Errorf("failed to create request: %w", err)
 		}
 		req.Header.Set("Content-Type", writer.FormDataContentType())
 
 	} else {
-		// esle ping normal json  request	
+		// else ping normal json request
 		req, err = http.NewRequest(apiConfig.Headers["Method"], apiConfig.URL, bytes.NewBuffer(bodyBytes))
 		if err != nil {
-			return fmt.Errorf("failed to create request: %w", err)
+			return &outputBuffer, fmt.Errorf("failed to create request: %w", err)
 		}
 		req.Header.Set("Content-Type", "application/json")
 	}
@@ -91,7 +90,7 @@ func ExecuteAPI(apiConfig *config.APIConfig, saveResponses bool, cookie []*http.
 		case "bearer":
 			req.Header.Set("Authorization", "Bearer "+apiConfig.Credentials.Token)
 		default:
-			return fmt.Errorf("unsupported credential type: %s", apiConfig.Credentials.Type)
+			return &outputBuffer, fmt.Errorf("unsupported credential type: %s", apiConfig.Credentials.Type)
 		}
 	}
 
@@ -118,7 +117,7 @@ func ExecuteAPI(apiConfig *config.APIConfig, saveResponses bool, cookie []*http.
 	client := &http.Client{}
 	resp, err := client.Do(req)
 	if err != nil {
-		return fmt.Errorf("request failed: %w", err)
+		return &outputBuffer, fmt.Errorf("request failed: %w", err)
 	}
 	defer resp.Body.Close()
 
@@ -128,33 +127,23 @@ func ExecuteAPI(apiConfig *config.APIConfig, saveResponses bool, cookie []*http.
 	bodyColor := color.New(color.FgYellow).SprintFunc()
 	errorColor := color.New(color.FgRed).SprintFunc()
 
-	// Print the response details in a cool way
-	fmt.Println()
-	fmt.Printf("%s: %s\n", statusColor("Status Code"), resp.Status)
-	
-	fmt.Println(headerColor("\nHeaders:"))
+	// Write the response details to the buffer
+	outputBuffer.WriteString(statusColor("\nAPI request executed successfully for: " + filepath + "\n"))
+	outputBuffer.WriteString(fmt.Sprintf("%s: %s\n", statusColor("Status Code"), resp.Status))
+
+	outputBuffer.WriteString(headerColor("\nHeaders:\n"))
 	for key, values := range resp.Header {
-		fmt.Printf("  %s: %s\n", key, values)
+		outputBuffer.WriteString(fmt.Sprintf("  %s: %s\n", key, values))
 	}
 
-	fmt.Println(bodyColor("\nBody:"))
-
-	var responseBodyBytes bytes.Buffer
-	chunk := make([]byte, 4096)
-
-	for {
-		n, err := resp.Body.Read(chunk)
-		if n > 0 {
-			responseBodyBytes.Write(chunk[:n])
-			fmt.Print(string(chunk))
-		}
-		if err == io.EOF {
-			break
-		}
-		if err != nil {
-			return fmt.Errorf("failed to read response: %w", err)
-		}
+	responseBodyBytes, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return &outputBuffer, fmt.Errorf("failed to read response: %w", err)
 	}
+
+	// Write the entire response body to the buffer
+	outputBuffer.WriteString(bodyColor("\nBody:\n"))
+	outputBuffer.WriteString(string(responseBodyBytes) + "\n")
 
 	if saveResponses || apiConfig.SaveResponse {
 		requestDetails := map[string]interface{}{
@@ -165,7 +154,7 @@ func ExecuteAPI(apiConfig *config.APIConfig, saveResponses bool, cookie []*http.
 		responseDetails := map[string]interface{}{
 			"Status":  resp.Status,
 			"Headers": resp.Header,
-			"Body":    responseBodyBytes.String(),
+			"Body":    responseBodyBytes,
 		}
 
 		timestamp := time.Now().Format("20060102_150405")
@@ -177,9 +166,9 @@ func ExecuteAPI(apiConfig *config.APIConfig, saveResponses bool, cookie []*http.
 
 		err := config.SaveResponseToFile(saveFilePath, requestDetails, responseDetails)
 		if err != nil {
-			return fmt.Errorf("\nfailed to save response: %w", err)
+			return &outputBuffer, fmt.Errorf("\nfailed to save response: %w", err)
 		}
-		fmt.Println("\nResponse saved to response.json")
+		outputBuffer.WriteString("\nResponse saved to response.json\n")
 	}
 
 	cookies := resp.Cookies()
@@ -188,8 +177,9 @@ func ExecuteAPI(apiConfig *config.APIConfig, saveResponses bool, cookie []*http.
 	}
 
 	if resp.StatusCode >= 400 {
-		return fmt.Errorf("%s: %s", errorColor("Error"), resp.Status)
+		return &outputBuffer, fmt.Errorf("%s: %s", errorColor("Error"), resp.Status)
 	}
 
-	return nil
+	outputBuffer.WriteString(errorColor("END\n"))
+	return &outputBuffer, nil
 }
