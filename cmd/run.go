@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"bytes"
 	"fmt"
 	"log"
 	"net/http"
@@ -15,90 +16,89 @@ import (
 	"github.com/spf13/cobra"
 )
 
-func exec(filepath string, wg *sync.WaitGroup,saveResponses bool,cookies []*http.Cookie) {
-	defer wg.Done()
-	
-	greenColor := color.New(color.FgGreen).SprintFunc()
-	BlueColor := color.New(color.FgCyan).SprintFunc()
-	fmt.Println(BlueColor("--------------- >>>>"))
-	fmt.Printf(greenColor("Running PingFile for: %s\n") ,filepath)
-	fmt.Println(BlueColor("<<<<---------------"))
-	
+var OutputBuffer bytes.Buffer
+
+func exec(filepath string, saveResponses bool, cookies []*http.Cookie) {
 	var apiConfig, err = config.Parser(filepath)
-	
 	if err != nil {
 		log.Printf("Error parsing file: %v", err)
 		return
 	}
 
-	err = runner.ExecuteAPI(apiConfig,saveResponses,cookies)
+	buffer, err := runner.ExecuteAPI(apiConfig, saveResponses, cookies, filepath)
 	if err != nil {
 		log.Printf("Request execution failed: %v", err)
 		return
 	}
 
-	fmt.Println("\nAPI request executed successfully for:", filepath)
+	// OutputBuffer.Write(buffer.Bytes())
+	fmt.Print(buffer)
 }
 
-func execSequentially(filepath string,saveResponses bool,cookies []*http.Cookie) {
-	greenColor := color.New(color.FgGreen).SprintFunc()
-	BlueColor := color.New(color.FgCyan).SprintFunc()
-	fmt.Println(BlueColor("--------------- >>>>"))
-	fmt.Printf(greenColor("Running PingFile for: %s\n") ,filepath)
-	fmt.Println(BlueColor("<<<<---------------"))
-
+func execSequentially(filepath string, saveResponses bool, cookies []*http.Cookie) {
 	var apiConfig, err = config.Parser(filepath)
 	if err != nil {
 		log.Printf("Error parsing file: %v", err)
 		return
 	}
 
-	err = runner.ExecuteAPI(apiConfig,saveResponses,cookies)
+	buffer, err := runner.ExecuteAPI(apiConfig, saveResponses, cookies, filepath)
 	if err != nil {
 		log.Printf("Request execution failed: %v", err)
 		return
 	}
-
-	fmt.Println("\nAPI request executed successfully for:", filepath)
+	fmt.Print(buffer)
+	// OutputBuffer.Write(buffer.Bytes())
 }
 
 var runCmd = &cobra.Command{
 	Use:   "run [files]",
 	Short: "Execute API requests from a file",
-	Long:  `The run command executes API requests defined in JSON, YAML, or PKFILE formats.`,
-	
+	Long:  "The run command executes API requests defined in JSON, YAML, or PKFILE formats.",
+
 	Run: func(cmd *cobra.Command, args []string) {
 		runtime.GOMAXPROCS(runtime.NumCPU())
 		filepaths := args
 
-		saveResponses , _ := cmd.Flags().GetBool("save")
+		greenColor := color.New(color.FgGreen).SprintFunc()
+		BlueColor := color.New(color.FgCyan).SprintFunc()
+		fmt.Println(BlueColor("--------------- >>>>"))
+		fmt.Println(greenColor("Running PingFile "))
+		fmt.Println(BlueColor("<<<<---------------"))
+
+		saveResponses, _ := cmd.Flags().GetBool("save")
 
 		var multiThread bool
 		if cmd.Flags().Changed("multithread") {
 			multiThread, _ = cmd.Flags().GetBool("multithread")
-		}	
-		
+		}
+
 		cookies, err := config.ParseCookie("root.cookie.pkfile")
 		if err != nil {
 			log.Printf("Error parsing cookies: %v", err)
 			cookies = nil
 		}
 
+
 		if multiThread {
 			var wg sync.WaitGroup
 			for _, filepath := range filepaths {
 				wg.Add(1)
 				go func(file string) {
-					exec(file, &wg, saveResponses, cookies)
+					defer wg.Done()
+					exec(file, saveResponses, cookies)
 				}(filepath)
 			}
 			wg.Wait()
 
 		} else {
 			for _, filepath := range filepaths {
-				execSequentially(filepath,saveResponses,cookies)
+				execSequentially(filepath, saveResponses, cookies)
 			}
 		}
+
+		// // Print the collected output synchronously
+		// fmt.Print(OutputBuffer.String())
 	},
 }
 
@@ -138,7 +138,7 @@ func installBinary() {
 	destPath := filepath.Join(destDir, "pingfile")
 	err = os.Rename(binaryPath, destPath)
 	if err != nil {
-		log.Fatal("Error installing Binary",err)
+		log.Fatal("Error installing Binary", err)
 	}
 	fmt.Printf("PingFile installed to %s\n", destPath)
 	fmt.Println("Make sure the directory is in your PATH.")
