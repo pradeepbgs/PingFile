@@ -16,7 +16,6 @@ import (
 
 func ExecuteAPI(apiConfig *config.APIConfig, saveResponses bool, cookie []*http.Cookie, filepath string) (*bytes.Buffer, error) {
 	var outputBuffer bytes.Buffer
-
 	if apiConfig.Headers["Method"] == "" {
 		return &outputBuffer, fmt.Errorf("HTTP method not specified")
 	}
@@ -128,10 +127,10 @@ func ExecuteAPI(apiConfig *config.APIConfig, saveResponses bool, cookie []*http.
 	errorColor := color.New(color.FgRed).SprintFunc()
 
 	// Write the response details to the buffer
-	outputBuffer.WriteString(statusColor("\nAPI request executed successfully for: " + filepath + "\n"))
+	outputBuffer.WriteString(statusColor("\n API request executed successfully for: " + filepath + "\n"))
 	outputBuffer.WriteString(fmt.Sprintf("%s: %s\n", statusColor("Status Code"), resp.Status))
-
-	outputBuffer.WriteString(headerColor("\nHeaders:\n"))
+	
+	outputBuffer.WriteString(headerColor("\nHedears:\n"))
 	for key, values := range resp.Header {
 		outputBuffer.WriteString(fmt.Sprintf("  %s: %s\n", key, values))
 	}
@@ -180,6 +179,6 @@ func ExecuteAPI(apiConfig *config.APIConfig, saveResponses bool, cookie []*http.
 		return &outputBuffer, fmt.Errorf("%s: %s", errorColor("Error"), resp.Status)
 	}
 
-	outputBuffer.WriteString(errorColor("END\n"))
+	outputBuffer.WriteString(errorColor("\nEND\n"))
 	return &outputBuffer, nil
 }
