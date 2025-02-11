@@ -1,23 +1,22 @@
 package cmd
 
 import (
-	"strings"
 	"fmt"
 	"log"
 	"net/http"
 	"os"
 	"path/filepath"
 	"runtime"
+	"strings"
 	"sync"
 
 	"github.com/fatih/color"
-	"github.com/pradeepbgs/pingfile/internal/config"
-	"github.com/pradeepbgs/pingfile/internal/runner"
+	"github.com/pradeepbgs/pingfile/src/config"
+	"github.com/pradeepbgs/pingfile/src/runner"
 	"github.com/spf13/cobra"
 )
 
-
-func exec(filepath string, saveResponses bool, cookies []*http.Cookie) {
+func execMultithreaded(filepath string, saveResponses bool, cookies []*http.Cookie) {
 	var apiConfig, err = config.Parser(filepath)
 	if err != nil {
 		log.Printf("Error parsing file: %v", err)
@@ -32,6 +31,7 @@ func exec(filepath string, saveResponses bool, cookies []*http.Cookie) {
 			return
 		}
 		fmt.Print(buffer)
+		
 	case *config.GroupApiConfig:
 		for i := range v.APIs {
 			api_Config := &v.APIs[i]
@@ -104,6 +104,7 @@ var runCmd = &cobra.Command{
 	Run: func(cmd *cobra.Command, args []string) {
 		runtime.GOMAXPROCS(runtime.NumCPU())
 		filepaths := args
+
 		greenColor := color.New(color.FgGreen).SprintFunc()
 		BlueColor := color.New(color.FgCyan).SprintFunc()
 		fmt.Println(BlueColor("--------------- >>>>"))
@@ -124,14 +125,28 @@ var runCmd = &cobra.Command{
 		}
 
 		if multiThread {
+			workers, _ := cmd.Flags().GetInt("workers")
+			if workers <= 0 {
+				workers = 4
+			}
 			var wg sync.WaitGroup
+			jobQueue := make(chan string, len(filepaths))
+
+			for i := 0; i < workers; i++ {
+				go func() {
+					for file := range jobQueue {
+						execMultithreaded(file, saveResponses, cookies)
+						wg.Done()
+					}
+				}()
+			}
+
 			for _, filepath := range filepaths {
 				wg.Add(1)
-				go func(file string) {
-					defer wg.Done()
-					exec(file, saveResponses, cookies)
-				}(filepath)
+				jobQueue <- filepath
 			}
+
+			close(jobQueue)
 			wg.Wait()
 
 		} else {
@@ -139,9 +154,6 @@ var runCmd = &cobra.Command{
 				execSequentially(filepath, saveResponses, cookies)
 			}
 		}
-
-		// // Print the collected output synchronously
-		// fmt.Print(OutputBuffer.String())
 	},
 }
 
@@ -190,6 +202,7 @@ func installBinary() {
 func init() {
 	runCmd.Flags().BoolP("multithread", "m", false, "Run API requests concurrently (multi-threaded)")
 	runCmd.Flags().BoolP("save", "s", false, "Save API response and request details")
+	runCmd.Flags().IntP("workers", "w", 4, "Number of concurrent workers (default: 4)")
 	rootCmd.AddCommand(runCmd)
 	rootCmd.AddCommand(installCmd)
 }

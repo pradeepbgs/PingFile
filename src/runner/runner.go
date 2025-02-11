@@ -5,7 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/fatih/color"
-	"github.com/pradeepbgs/pingfile/internal/config"
+	"github.com/pradeepbgs/pingfile/src/config"
 	"io"
 	"mime/multipart"
 	"net/http"
