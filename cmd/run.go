@@ -120,7 +120,7 @@ var runCmd = &cobra.Command{
 
 		cookies, err := config.ParseCookie("root.cookie.pkfile")
 		if err != nil {
-			log.Printf("Error parsing cookies: %v", err)
+			// log.Printf("Error parsing cookies: %v", err)
 			cookies = nil
 		}
 
