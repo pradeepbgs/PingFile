@@ -142,7 +142,7 @@ func ExecuteAPI(apiConfig *config.APIConfig, saveResponses bool, cookie []*http.
 
 	// Write the entire response body to the buffer
 	outputBuffer.WriteString(bodyColor("\nBody:\n"))
-	outputBuffer.WriteString(string(responseBodyBytes) + "\n")
+	outputBuffer.WriteString("\n"+string(responseBodyBytes) + "\n")
 
 	if saveResponses || apiConfig.SaveResponse {
 		requestDetails := map[string]interface{}{
@@ -175,17 +175,17 @@ func ExecuteAPI(apiConfig *config.APIConfig, saveResponses bool, cookie []*http.
 		config.SaveCookies("root.cookie.pkfile", cookies)
 	}
 
-	if resp.StatusCode >= 400 {
-		errMsg := fmt.Sprintf("HTTP %d Error", resp.StatusCode) // Default error message
+	// if resp.StatusCode >= 400 {
+	// 	errMsg := fmt.Sprintf("HTTP %d Error", resp.StatusCode) 
 	
-		var responseMap map[string]interface{}
-		if json.Unmarshal(responseBodyBytes, &responseMap) == nil {
-			if msg, ok := responseMap["message"].(string); ok && msg != "" {
-				errMsg = fmt.Sprintf("HTTP %d - %s", resp.StatusCode, msg) // Include status and message
-			}
-		}
-		return &outputBuffer, fmt.Errorf("%s: %s", errorColor("Error"), errMsg)
-	}
+	// 	var responseMap map[string]interface{}
+	// 	if json.Unmarshal(responseBodyBytes, &responseMap) == nil {
+	// 		if msg, ok := responseMap["message"].(string); ok && msg != "" {
+	// 			errMsg = fmt.Sprintf("HTTP %d - %s", resp.StatusCode, msg)
+	// 		}
+	// 	}
+	// 	return &outputBuffer, fmt.Errorf("%s: %s", errorColor("Error"), errMsg)
+	// }
 	
 	
 
