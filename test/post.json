@@ -1,0 +1,7 @@
+{
+    "name":"Ping hello world /",
+    "url":"http://localhost:3002/",
+    "headers":{
+        "Method":"PUT"
+    }
+}

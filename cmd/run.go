@@ -10,13 +10,13 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/fatih/color"
 	"github.com/pradeepbgs/pingfile/src/config"
 	"github.com/pradeepbgs/pingfile/src/runner"
 	"github.com/spf13/cobra"
 )
 
-func execMultithreaded(filepath string, saveResponses bool, cookies []*http.Cookie) {
+func executeRequest(filepath string, saveResponses bool, cookies []*http.Cookie) {
+
 	var apiConfig, err = config.Parser(filepath)
 	if err != nil {
 		log.Printf("Error parsing file: %v", err)
@@ -24,6 +24,7 @@ func execMultithreaded(filepath string, saveResponses bool, cookies []*http.Cook
 	}
 
 	switch v := apiConfig.(type) {
+
 	case *config.APIConfig:
 		buffer, err := runner.ExecuteAPI(v, saveResponses, cookies, filepath)
 		if err != nil {
@@ -31,46 +32,7 @@ func execMultithreaded(filepath string, saveResponses bool, cookies []*http.Cook
 			return
 		}
 		fmt.Print(buffer)
-		
-	case *config.GroupApiConfig:
-		for i := range v.APIs {
-			api_Config := &v.APIs[i]
-			if !strings.HasPrefix(api_Config.URL, "http://") && !strings.HasPrefix(api_Config.URL, "https://") {
-				api_Config.URL = v.BaseUrl + api_Config.URL
-			}
 
-			if api_Config.Run != nil && !*api_Config.Run {
-				fmt.Printf("\nRunning config is disabled for %s file, skipping execution.\n", api_Config.URL)
-				continue
-			}
-
-			buffer, err := runner.ExecuteAPI(api_Config, saveResponses, cookies, filepath)
-			if err != nil {
-				log.Printf("Request execution failed: %v", err)
-				return
-			}
-			fmt.Print(buffer)
-		}
-	default:
-		log.Println("Unknown config type")
-	}
-}
-
-func execSequentially(filepath string, saveResponses bool, cookies []*http.Cookie) {
-	var apiConfig, err = config.Parser(filepath)
-	if err != nil {
-		log.Printf("Error parsing file: %v", err)
-		return
-	}
-
-	switch v := apiConfig.(type) {
-	case *config.APIConfig:
-		buffer, err := runner.ExecuteAPI(v, saveResponses, cookies, filepath)
-		if err != nil {
-			log.Printf("Request execution failed: %v", err)
-			return
-		}
-		fmt.Print(buffer)
 	case *config.GroupApiConfig:
 		for i := range v.APIs {
 			api_Config := &v.APIs[i]
@@ -91,6 +53,7 @@ func execSequentially(filepath string, saveResponses bool, cookies []*http.Cooki
 			}
 			fmt.Print(buffer)
 		}
+
 	default:
 		log.Println("Unknown config type")
 	}
@@ -105,12 +68,6 @@ var runCmd = &cobra.Command{
 		runtime.GOMAXPROCS(runtime.NumCPU())
 		filepaths := args
 
-		greenColor := color.New(color.FgGreen).SprintFunc()
-		BlueColor := color.New(color.FgCyan).SprintFunc()
-		fmt.Println(BlueColor("--------------- >>>>"))
-		fmt.Println(greenColor("Running PingFile "))
-		fmt.Println(BlueColor("<<<<---------------"))
-
 		saveResponses, _ := cmd.Flags().GetBool("save")
 
 		var multiThread bool
@@ -120,7 +77,6 @@ var runCmd = &cobra.Command{
 
 		cookies, err := config.ParseCookie("root.cookie.pkfile")
 		if err != nil {
-			// log.Printf("Error parsing cookies: %v", err)
 			cookies = nil
 		}
 
@@ -132,10 +88,10 @@ var runCmd = &cobra.Command{
 			var wg sync.WaitGroup
 			jobQueue := make(chan string, len(filepaths))
 
-			for i := 0; i < workers; i++ {
+			for range workers {
 				go func() {
 					for file := range jobQueue {
-						execMultithreaded(file, saveResponses, cookies)
+						executeRequest(file, saveResponses, cookies)
 						wg.Done()
 					}
 				}()
@@ -151,7 +107,7 @@ var runCmd = &cobra.Command{
 
 		} else {
 			for _, filepath := range filepaths {
-				execSequentially(filepath, saveResponses, cookies)
+				executeRequest(filepath, saveResponses, cookies)
 			}
 		}
 	},

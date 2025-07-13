@@ -125,7 +125,10 @@ func ExecuteAPI(apiConfig *config.APIConfig, saveResponses bool, cookie []*http.
 	headerColor := color.New(color.FgCyan).SprintFunc()
 	bodyColor := color.New(color.FgYellow).SprintFunc()
 	errorColor := color.New(color.FgRed).SprintFunc()
+	BlueColor := color.New(color.FgCyan).SprintFunc()
 
+	outputBuffer.WriteString(BlueColor("\n--------------- >>>>\n"))
+	outputBuffer.WriteString(statusColor("Running PingFile "))
 	// Write the response details to the buffer
 	outputBuffer.WriteString(statusColor("\n API request executed successfully for: " + filepath + "\n"))
 	outputBuffer.WriteString(fmt.Sprintf("%s: %s\n", statusColor("Status Code"), resp.Status))
@@ -173,22 +176,9 @@ func ExecuteAPI(apiConfig *config.APIConfig, saveResponses bool, cookie []*http.
 	cookies := resp.Cookies()
 	if len(cookies) > 0 {
 		config.SaveCookies("root.cookie.pkfile", cookies)
-	}
-
-	// if resp.StatusCode >= 400 {
-	// 	errMsg := fmt.Sprintf("HTTP %d Error", resp.StatusCode) 
-	
-	// 	var responseMap map[string]interface{}
-	// 	if json.Unmarshal(responseBodyBytes, &responseMap) == nil {
-	// 		if msg, ok := responseMap["message"].(string); ok && msg != "" {
-	// 			errMsg = fmt.Sprintf("HTTP %d - %s", resp.StatusCode, msg)
-	// 		}
-	// 	}
-	// 	return &outputBuffer, fmt.Errorf("%s: %s", errorColor("Error"), errMsg)
-	// }
-	
-	
+	}	
 
 	outputBuffer.WriteString(errorColor("\nEND\n"))
+	outputBuffer.WriteString(BlueColor("--------------- <<<<\n"))
 	return &outputBuffer, nil
 }
