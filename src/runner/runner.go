@@ -37,7 +37,11 @@ func executeWithRetry(client *http.Client, req *http.Request, retry int, retryDe
 		retryDelay = 1000
 	}
 
-	for attempts = 0; attempts <= retry; attempts++ {
+	if retry <= 0 {
+		retry =1
+	}
+
+	for attempts = 0; attempts < retry; attempts++ {
 		res, err = client.Do(req)
 
 		// we send res and err to this func
@@ -185,13 +189,38 @@ func ExecuteAPI(apiConfig *config.APIConfig, saveResponses bool, cookie []*http.
 	warningColor := color.New(color.FgYellow).SprintFunc()
 	greenColor := color.New(color.FgGreen).SprintFunc()
 
+	isSuccess := resp.StatusCode >= 200 && resp.StatusCode < 300
+	isRetryExhausted := attempts > 0
+
 	outputBuffer.WriteString(BlueColor("\n--------------- >>>>\n"))
 	outputBuffer.WriteString(greenColor("Running PingFile "))
-	// Write the response details to the buffer
-	outputBuffer.WriteString(greenColor("\n API request executed successfully for: " + filepath + "\n"))
 
-	if attempts > 0 {
-		outputBuffer.WriteString(warningColor(fmt.Sprintf("⚠ Request succeeded after %d retry attempt(s)\n", attempts)))
+	if isSuccess {
+		outputBuffer.WriteString(
+			greenColor("\n API request succeeded for: " + filepath + "\n"),
+		)
+	} else {
+		outputBuffer.WriteString(
+			errorColor("\n API request failed for: " + filepath + "\n"),
+		)
+	}
+
+	if isRetryExhausted {
+		if isSuccess {
+			outputBuffer.WriteString(
+				warningColor(fmt.Sprintf(
+					"Succeeded after %d retry attempt(s)\n",
+					attempts,
+				)),
+			)
+		} else {
+			outputBuffer.WriteString(
+				errorColor(fmt.Sprintf(
+					"✖ Failed after %d retry attempt(s)\n",
+					attempts,
+				)),
+			)
+		}
 	}
 
 	outputBuffer.WriteString(fmt.Sprintf("%s: %s\n", statusColor("Status Code"), resp.Status))

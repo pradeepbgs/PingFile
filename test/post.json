@@ -1,7 +1,8 @@
 {
     "name":"Ping hello world /",
-    "url":"http://localhost:3002/",
+    "url":"http://localhost:3000/post",
+    "saveResponse":false,
     "headers":{
-        "Method":"PUT"
+        "Method":"GET"
     }
 }
