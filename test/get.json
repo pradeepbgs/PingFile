@@ -1,6 +1,7 @@
 {
     "name": "Ping hello world /",
-    "url": "http://localhost:3002/",
+    "url": "http://localhost:3000/",
+    "retry":3,
     "headers": {
         "Method": "GET"
     }

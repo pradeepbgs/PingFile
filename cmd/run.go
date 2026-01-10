@@ -128,14 +128,15 @@ func installBinary() {
 	}
 
 	destDir := ""
-	if runtime.GOOS == "linux" {
+	switch runtime.GOOS {
+	case "linux":
 		destDir = "/usr/local/bin"
-	} else if runtime.GOOS == "windows" {
+	case "windows":
 		destDir = filepath.Join(os.Getenv("USERPROFILE"), "bin")
 		if err := os.MkdirAll(destDir, 0755); err != nil {
 			log.Fatalf("Error creating directory %s: %v", destDir, err)
 		}
-	} else if runtime.GOOS == "darwin" || runtime.GOOS == "macos" {
+	case "darwin", "macos":
 		destDir = filepath.Join(os.Getenv("HOME"), "bin")
 		if err := os.MkdirAll(destDir, 0755); err != nil {
 			log.Fatalf("Error creating directory %s: %v", destDir, err)

@@ -4,15 +4,59 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"github.com/fatih/color"
-	"github.com/pradeepbgs/pingfile/src/config"
 	"io"
 	"mime/multipart"
 	"net/http"
 	"os"
 	"strings"
 	"time"
+
+	"github.com/fatih/color"
+	"github.com/pradeepbgs/pingfile/src/config"
 )
+
+func shouldRetry(resp *http.Response, err error) bool {
+	if err != nil {
+		return true
+	}
+
+	if resp.StatusCode >= 500 {
+		return true
+	} else if resp.StatusCode == 429 {
+		return true
+	}
+	return false
+}
+
+func executeWithRetry(client *http.Client, req *http.Request, retry int, retryDelay int) (*http.Response, int, error) {
+	var res *http.Response
+	var err error
+	attempts := 0
+
+	if retryDelay <= 0 {
+		retryDelay = 1000
+	}
+
+	for attempts = 0; attempts <= retry; attempts++ {
+		res, err = client.Do(req)
+
+		// we send res and err to this func
+		// it will return boolean
+		// if it returns true it means we got err or 500 or 429 statsuCode and we should retry
+		// if it returns false which means req was successfull
+		if !shouldRetry(res, err) {
+			break
+		}
+
+		if attempts < retry {
+			// exponential backoff
+			backoff := time.Duration(retryDelay) * time.Millisecond * time.Duration(1<<attempts)
+			time.Sleep(backoff)
+		}
+	}
+
+	return res, attempts, err
+}
 
 func ExecuteAPI(apiConfig *config.APIConfig, saveResponses bool, cookie []*http.Cookie, filepath string) (*bytes.Buffer, error) {
 	var outputBuffer bytes.Buffer
@@ -114,25 +158,44 @@ func ExecuteAPI(apiConfig *config.APIConfig, saveResponses bool, cookie []*http.
 
 	// Send the HTTP request
 	client := &http.Client{}
-	resp, err := client.Do(req)
+	// resp, err := client.Do(req)
+	resp, attempts, err := executeWithRetry(client, req, apiConfig.Retry, apiConfig.RetryDelay)
 	if err != nil {
 		return &outputBuffer, fmt.Errorf("request failed: %w", err)
 	}
 	defer resp.Body.Close()
 
 	// Define colors for output
-	statusColor := color.New(color.FgGreen).SprintFunc()
+	var statusColorPointer *color.Color
+
+	if resp.StatusCode >= 200 && resp.StatusCode <= 400 {
+		statusColorPointer = color.New(color.BgGreen)
+	} else if resp.StatusCode >= 500 || resp.StatusCode == 429 {
+		statusColorPointer = color.New(color.FgRed)
+	} else {
+		statusColorPointer = color.New(color.FgYellow)
+	}
+
+	statusColor := statusColorPointer.SprintFunc()
+
 	headerColor := color.New(color.FgCyan).SprintFunc()
 	bodyColor := color.New(color.FgYellow).SprintFunc()
 	errorColor := color.New(color.FgRed).SprintFunc()
 	BlueColor := color.New(color.FgCyan).SprintFunc()
+	warningColor := color.New(color.FgYellow).SprintFunc()
+	greenColor := color.New(color.FgGreen).SprintFunc()
 
 	outputBuffer.WriteString(BlueColor("\n--------------- >>>>\n"))
-	outputBuffer.WriteString(statusColor("Running PingFile "))
+	outputBuffer.WriteString(greenColor("Running PingFile "))
 	// Write the response details to the buffer
-	outputBuffer.WriteString(statusColor("\n API request executed successfully for: " + filepath + "\n"))
+	outputBuffer.WriteString(greenColor("\n API request executed successfully for: " + filepath + "\n"))
+
+	if attempts > 0 {
+		outputBuffer.WriteString(warningColor(fmt.Sprintf("⚠ Request succeeded after %d retry attempt(s)\n", attempts)))
+	}
+
 	outputBuffer.WriteString(fmt.Sprintf("%s: %s\n", statusColor("Status Code"), resp.Status))
-	
+
 	outputBuffer.WriteString(headerColor("\nHedears:\n"))
 	for key, values := range resp.Header {
 		outputBuffer.WriteString(fmt.Sprintf("  %s: %s\n", key, values))
@@ -145,7 +208,7 @@ func ExecuteAPI(apiConfig *config.APIConfig, saveResponses bool, cookie []*http.
 
 	// Write the entire response body to the buffer
 	outputBuffer.WriteString(bodyColor("\nBody:\n"))
-	outputBuffer.WriteString("\n"+string(responseBodyBytes) + "\n")
+	outputBuffer.WriteString("\n" + string(responseBodyBytes) + "\n")
 
 	if saveResponses || apiConfig.SaveResponse {
 		requestDetails := map[string]interface{}{
@@ -176,7 +239,7 @@ func ExecuteAPI(apiConfig *config.APIConfig, saveResponses bool, cookie []*http.
 	cookies := resp.Cookies()
 	if len(cookies) > 0 {
 		config.SaveCookies("root.cookie.pkfile", cookies)
-	}	
+	}
 
 	outputBuffer.WriteString(errorColor("\nEND\n"))
 	outputBuffer.WriteString(BlueColor("--------------- <<<<\n"))
