@@ -173,7 +173,7 @@ func ExecuteAPI(apiConfig *config.APIConfig, saveResponses bool, cookie []*http.
 	var statusColorPointer *color.Color
 
 	if resp.StatusCode >= 200 && resp.StatusCode <= 400 {
-		statusColorPointer = color.New(color.BgGreen)
+		statusColorPointer = color.New(color.FgGreen)
 	} else if resp.StatusCode >= 500 || resp.StatusCode == 429 {
 		statusColorPointer = color.New(color.FgRed)
 	} else {
@@ -192,8 +192,8 @@ func ExecuteAPI(apiConfig *config.APIConfig, saveResponses bool, cookie []*http.
 	isSuccess := resp.StatusCode >= 200 && resp.StatusCode < 300
 	isRetryExhausted := attempts > 0
 
-	outputBuffer.WriteString(BlueColor("\n--------------- >>>>\n"))
-	outputBuffer.WriteString(greenColor("Running PingFile "))
+	outputBuffer.WriteString(BlueColor("\n --------------- >>>>\n"))
+	outputBuffer.WriteString(greenColor(" Running PingFile "))
 
 	if isSuccess {
 		outputBuffer.WriteString(
@@ -209,23 +209,23 @@ func ExecuteAPI(apiConfig *config.APIConfig, saveResponses bool, cookie []*http.
 		if isSuccess {
 			outputBuffer.WriteString(
 				warningColor(fmt.Sprintf(
-					"Succeeded after %d retry attempt(s)\n",
+					" Succeeded after %d retry attempt(s)\n",
 					attempts,
 				)),
 			)
 		} else {
 			outputBuffer.WriteString(
 				errorColor(fmt.Sprintf(
-					"✖ Failed after %d retry attempt(s)\n",
+					" Failed after %d retry attempt(s)\n",
 					attempts,
 				)),
 			)
 		}
 	}
 
-	outputBuffer.WriteString(fmt.Sprintf("%s: %s\n", statusColor("Status Code"), resp.Status))
+	outputBuffer.WriteString(fmt.Sprintf(" %s: %s\n", statusColor("STATUS"), resp.Status))
 
-	outputBuffer.WriteString(headerColor("\nHedears:\n"))
+	outputBuffer.WriteString(headerColor("\n Hedears:\n"))
 	for key, values := range resp.Header {
 		outputBuffer.WriteString(fmt.Sprintf("  %s: %s\n", key, values))
 	}
@@ -236,8 +236,8 @@ func ExecuteAPI(apiConfig *config.APIConfig, saveResponses bool, cookie []*http.
 	}
 
 	// Write the entire response body to the buffer
-	outputBuffer.WriteString(bodyColor("\nBody:\n"))
-	outputBuffer.WriteString("\n" + string(responseBodyBytes) + "\n")
+	outputBuffer.WriteString(bodyColor("\n Body:\n"))
+	outputBuffer.WriteString("\n " + string(responseBodyBytes) + "\n")
 
 	if saveResponses || apiConfig.SaveResponse {
 		requestDetails := map[string]interface{}{
@@ -260,9 +260,9 @@ func ExecuteAPI(apiConfig *config.APIConfig, saveResponses bool, cookie []*http.
 
 		err := config.SaveResponseToFile(saveFilePath, requestDetails, responseDetails)
 		if err != nil {
-			return &outputBuffer, fmt.Errorf("\nfailed to save response: %w", err)
+			return &outputBuffer, fmt.Errorf("\n failed to save response: %w", err)
 		}
-		outputBuffer.WriteString("\nResponse saved to response.json\n")
+		outputBuffer.WriteString("\n Response saved to response.json\n")
 	}
 
 	cookies := resp.Cookies()
@@ -270,7 +270,7 @@ func ExecuteAPI(apiConfig *config.APIConfig, saveResponses bool, cookie []*http.
 		config.SaveCookies("root.cookie.pkfile", cookies)
 	}
 
-	outputBuffer.WriteString(errorColor("\nEND\n"))
-	outputBuffer.WriteString(BlueColor("--------------- <<<<\n"))
+	outputBuffer.WriteString(errorColor("\n END\n"))
+	outputBuffer.WriteString(BlueColor(" --------------- <<<<\n"))
 	return &outputBuffer, nil
 }
