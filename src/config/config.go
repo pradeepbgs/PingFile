@@ -28,7 +28,7 @@ type FileItem struct {
 type APIConfig struct {
 	Name               string                 `json:"name" yaml:"name"`
 	Description        string                 `json:"description" yaml:"description"`
-	Run 			   *bool					  `json:"run" yaml:"run"`
+	Run                *bool                  `json:"run" yaml:"run"`
 	SaveResponse       bool                   `json:"saveResponse" yaml:"saveResponse"`
 	FilePath           string                 `json:"filePath" yaml:"filePath"`
 	IncludeCookie      *bool                  `json:"includeCookie" yaml:"includeCookie"`
@@ -38,6 +38,8 @@ type APIConfig struct {
 	Body               map[string]interface{} `json:"body" yaml:"body"`
 	File               []FileItem             `json:"file" yaml:"file"`
 	Credentials        *Credentials           `json:"credentials" yaml:"credentials"`
+	Retry              int                    `json:"retry" yaml:"retry"`
+	RetryDelay         int                    `json:"retryDelay" yaml:"retryDelay"`
 }
 
 type GroupApiConfig struct {

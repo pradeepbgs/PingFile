@@ -1,0 +1,15 @@
+{
+    "name": "Ping hello world /",
+    "url": "http://localhost:3000/err",
+    "saveResponse": false,
+    "retry":3,
+    "headers": {
+        "Method": "POST"
+    },
+    "body": {
+        "fullname": "pradeep kumar",
+        "username": "cityofdeadpeople",
+        "email": "kumarpradeepbgs@gmail.com",
+        "password": "exvillager"
+    }
+}

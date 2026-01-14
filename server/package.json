@@ -1,0 +1,17 @@
+{
+  "dependencies": {
+    "@types/node": "^25.0.8",
+    "diesel-core": "^1.7.2"
+  },
+  "name": "server",
+  "private": true,
+  "scripts": {
+    "dev":"bun run --hot app.ts"
+  },
+  "devDependencies": {
+    "@types/bun": "latest"
+  },
+  "peerDependencies": {
+    "typescript": "^5"
+  }
+}
