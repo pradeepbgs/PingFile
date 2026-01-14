@@ -28,7 +28,7 @@ func shouldRetry(resp *http.Response, err error) bool {
 	return false
 }
 
-func executeWithRetry(client *http.Client, req *http.Request, retry int, retryDelay int) (*http.Response, int, error) {
+func executeWithRetry(client *http.Client, buildRequest func() (*http.Request, error), retry int, retryDelay int) (*http.Response, int, error) {
 	var res *http.Response
 	var err error
 	attempts := 0
@@ -38,12 +38,12 @@ func executeWithRetry(client *http.Client, req *http.Request, retry int, retryDe
 	}
 
 	if retry <= 0 {
-		retry =1
+		retry = 1
 	}
 
 	for attempts = 0; attempts < retry; attempts++ {
+		req, err := buildRequest()
 		res, err = client.Do(req)
-
 		// we send res and err to this func
 		// it will return boolean
 		// if it returns true it means we got err or 500 or 429 statsuCode and we should retry
@@ -64,6 +64,7 @@ func executeWithRetry(client *http.Client, req *http.Request, retry int, retryDe
 
 func ExecuteAPI(apiConfig *config.APIConfig, saveResponses bool, cookie []*http.Cookie, filepath string) (*bytes.Buffer, error) {
 	var outputBuffer bytes.Buffer
+
 	if apiConfig.Headers["Method"] == "" {
 		return &outputBuffer, fmt.Errorf("HTTP method not specified")
 	}
@@ -71,6 +72,7 @@ func ExecuteAPI(apiConfig *config.APIConfig, saveResponses bool, cookie []*http.
 		return &outputBuffer, fmt.Errorf("URL not specified")
 	}
 
+	method := apiConfig.Headers["Method"]
 	// Prepare request body
 	var bodyBytes []byte
 	if len(apiConfig.Body) > 0 {
@@ -83,87 +85,92 @@ func ExecuteAPI(apiConfig *config.APIConfig, saveResponses bool, cookie []*http.
 
 	hasFile := len(apiConfig.File) > 0
 
-	if hasFile {
-		var requestBody bytes.Buffer
-		writer := multipart.NewWriter(&requestBody)
+	// Build Req func
+	buildRequest := func() (*http.Request, error) {
+		if hasFile {
+			var requestBody bytes.Buffer
+			writer := multipart.NewWriter(&requestBody)
 
-		for key, value := range apiConfig.Body {
-			err := writer.WriteField(key, fmt.Sprintf("%v", value))
+			for key, value := range apiConfig.Body {
+				err := writer.WriteField(key, fmt.Sprintf("%v", value))
+				if err != nil {
+					return nil, fmt.Errorf("failed to write field: %w", err)
+				}
+			}
+			// attach files
+			for _, fileItem := range apiConfig.File {
+				file, err := os.Open(fileItem.Path)
+				if err != nil {
+					return nil, fmt.Errorf("failed to open file: %w", err)
+				}
+				defer file.Close()
+
+				part, err := writer.CreateFormFile(fileItem.Name, fileItem.Path)
+				if err != nil {
+					return nil, fmt.Errorf("failed to create form file: %w", err)
+				}
+				_, err = io.Copy(part, file)
+				if err != nil {
+					return nil, fmt.Errorf("failed to copy file content: %w", err)
+				}
+			}
+
+			if err := writer.Close(); err != nil {
+				return nil, fmt.Errorf("failed to close writer: %w", err)
+			}
+
+			req, err = http.NewRequest(method, apiConfig.URL, &requestBody)
 			if err != nil {
-				return &outputBuffer, fmt.Errorf("failed to write field: %w", err)
+				return nil, fmt.Errorf("failed to create request: %w", err)
+			}
+			req.Header.Set("Content-Type", writer.FormDataContentType())
+
+		} else {
+			// else ping normal json request
+			reader := bytes.NewBuffer(bodyBytes)
+			req, err = http.NewRequest(method, apiConfig.URL, reader)
+			if err != nil {
+				return nil, fmt.Errorf("failed to create request: %w", err)
+			}
+			req.Header.Set("Content-Type", "application/json")
+		}
+
+		if apiConfig.IncludeCredentials && apiConfig.Credentials != nil {
+			switch apiConfig.Credentials.Type {
+			case "basic":
+				req.SetBasicAuth(apiConfig.Credentials.Username, apiConfig.Credentials.Password)
+			case "bearer":
+				req.Header.Set("Authorization", "Bearer "+apiConfig.Credentials.Token)
+			default:
+				return nil, fmt.Errorf("unsupported credential type: %s", apiConfig.Credentials.Type)
 			}
 		}
-		// attach files
-		for _, fileItem := range apiConfig.File {
-			file, err := os.Open(fileItem.Path)
-			if err != nil {
-				return &outputBuffer, fmt.Errorf("failed to open file: %w", err)
-			}
-			defer file.Close()
 
-			part, err := writer.CreateFormFile(fileItem.Name, fileItem.Path)
-			if err != nil {
-				return &outputBuffer, fmt.Errorf("failed to create form file: %w", err)
-			}
-			_, err = io.Copy(part, file)
-			if err != nil {
-				return &outputBuffer, fmt.Errorf("failed to copy file content: %w", err)
+		// Add other headers to the request
+		for key, value := range apiConfig.Headers {
+			if key != "Method" {
+				req.Header.Set(key, value)
 			}
 		}
 
-		if err := writer.Close(); err != nil {
-			return &outputBuffer, fmt.Errorf("failed to close writer: %w", err)
+		// add cookies if enabled
+		includeCookie := true
+		if apiConfig.IncludeCookie != nil {
+			includeCookie = *apiConfig.IncludeCookie
 		}
 
-		req, err = http.NewRequest(apiConfig.Headers["Method"], apiConfig.URL, &requestBody)
-		if err != nil {
-			return &outputBuffer, fmt.Errorf("failed to create request: %w", err)
+		if includeCookie && cookie != nil {
+			for _, c := range cookie {
+				req.AddCookie(c)
+			}
 		}
-		req.Header.Set("Content-Type", writer.FormDataContentType())
-
-	} else {
-		// else ping normal json request
-		req, err = http.NewRequest(apiConfig.Headers["Method"], apiConfig.URL, bytes.NewBuffer(bodyBytes))
-		if err != nil {
-			return &outputBuffer, fmt.Errorf("failed to create request: %w", err)
-		}
-		req.Header.Set("Content-Type", "application/json")
-	}
-
-	if apiConfig.IncludeCredentials && apiConfig.Credentials != nil {
-		switch apiConfig.Credentials.Type {
-		case "basic":
-			req.SetBasicAuth(apiConfig.Credentials.Username, apiConfig.Credentials.Password)
-		case "bearer":
-			req.Header.Set("Authorization", "Bearer "+apiConfig.Credentials.Token)
-		default:
-			return &outputBuffer, fmt.Errorf("unsupported credential type: %s", apiConfig.Credentials.Type)
-		}
-	}
-
-	// Add other headers to the request
-	for key, value := range apiConfig.Headers {
-		if key != "Method" {
-			req.Header.Set(key, value)
-		}
-	}
-
-	// add cookies if enabled
-	includeCookie := true
-	if apiConfig.IncludeCookie != nil {
-		includeCookie = *apiConfig.IncludeCookie
-	}
-
-	if includeCookie && cookie != nil {
-		for _, c := range cookie {
-			req.AddCookie(c)
-		}
+		return req, nil
 	}
 
 	// Send the HTTP request
 	client := &http.Client{}
 	// resp, err := client.Do(req)
-	resp, attempts, err := executeWithRetry(client, req, apiConfig.Retry, apiConfig.RetryDelay)
+	resp, attempts, err := executeWithRetry(client, buildRequest, apiConfig.Retry, apiConfig.RetryDelay)
 	if err != nil {
 		return &outputBuffer, fmt.Errorf("request failed: %w", err)
 	}
