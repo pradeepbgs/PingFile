@@ -1,3 +1,5 @@
+No one is using this so i don't get any joy at making issue and solving them.
+maybe when i want to code in Go again so i wll look into it ( obviously one of the best project of mine )
 # PingFile CLI
 
 PingFile is a command-line tool that allows you to execute API requests from configuration files defined in JSON, YAML, or PKFILE formats. It helps automate and manage API testing and execution, making it easier to work with various API configurations from a single command.
