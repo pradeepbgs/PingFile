@@ -21,7 +21,7 @@ PingFile is a command-line tool that allows you to execute API requests from con
 1. Clone the repository:
 
    ```bash
-   git clone https://github.com/pradeepbgs/PingFile.git
+   git clone https://github.com/libsib/pingfile.git
    cd pingfile
    ```
 
@@ -100,9 +100,9 @@ pingfile run getrequest.json
             "headers": { "Method": "POST" },
             "body": {
                 "fullname":"pradeep kumar",
-                "username":"cityofdeadpeople",
-                "email": "kumarpradeepbgs@gmail.com",
-                "password": "exvillager"
+                "username":"userrrsss",
+                "email": "okay@gmail.com",
+                "password": "okaysir"
             }
         },
         {
@@ -114,7 +114,7 @@ pingfile run getrequest.json
             "url": "/api/v1/user/login",
             "headers": { "Method": "POST" },
             "body": {
-                "email": "kumarpradeepbgs@gmail.com",
+                "email": "okay@gmail.com",
                 "password": "linux"
             }
         },
